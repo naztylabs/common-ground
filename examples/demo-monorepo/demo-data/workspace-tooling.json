@@ -7,6 +7,10 @@
         "path": "package.json",
         "quote": "\"build\":\"nx run-many -t build\""
       }
-    ]
+    ],
+    "sourceScope": [
+      "package.json"
+    ],
+    "dependsOn": []
   }
 ]

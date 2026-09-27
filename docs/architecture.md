@@ -1,21 +1,23 @@
 # Architecture and beta boundaries
 
-- `src/model.ts`: strict record and update schemas.
-- `src/store.ts`: safe path handling, bounded scope snapshots, evidence validation, registry transactions, local review proposals.
-- `src/init.ts`: bounded discovery, managed instruction blocks, comment-preserving VS Code configuration.
-- `src/server.ts`: five MCP tools and bounded keyword retrieval.
-- `src/cli.ts`: operator commands and stdio entry point.
+- `src/model.ts`: strict schema v2 pillar, chapter, fact, and multi-chapter review records; schema v1 migration input.
+- `src/store.ts`: safe paths, evidence and ownership checks, dependency traversal, freshness, migration, and atomic review transactions.
+- `src/init.ts`: bounded discovery and managed repository instructions/MCP configuration.
+- `src/server.ts`: eight stdio MCP tools, paginated navigation, evidence retrieval, and Unicode-aware keyword search.
+- `src/cli.ts`: agent/operator CLI and MCP entry point.
 
-`.common-ground/knowledge.json` is one atomic, Git-tracked registry containing pillar definitions and facts. This trades granular Git merging for simple complete transactions in the beta. `.common-ground/local/` contains unshared proposals, review snapshots, and a writer lock. The source schema is also published as JSON Schema under `schemas/`.
+`.common-ground/knowledge.json` is a Git-tracked registry. Pillars contain chapter definitions; chapters index facts and define authoring boundaries. Facts own exact evidence, source scopes, and directed fact-to-fact dependencies. One atomic file permits all affected chapter revisions to publish together. `.common-ground/local/` contains ignored proposals, review snapshots, a migration backup, and a writer lock.
 
-Discovery inspects at most 1,500 filesystem entries, excludes common generated folders and .env names, reads filenames rather than entire source contents, and proposes up to 30 path hints per detected category. It reports incomplete discovery and does not establish exhaustive coverage. It recognizes illustrative Azure/GitHub pipeline, Nx/npm, UI, and Java patterns; a developer or coding agent must refine the proposal for other architectures.
+Storage has no fixed fact-count ceiling. Pillar and chapter indexes and chapter fact reads are paginated (10 by default, up to 20 per response). Evidence is retrieved one fact at a time. Keyword search returns at most 20 summaries. Pagination rejects changed index/fact content. A full chapter review must traverse all its fact pages.
 
-Scope validation is limited to 10,000 entries and 2 MB per file. Broad scopes containing binary assets may be unsuitable. Pillars have no fixed fact-count ceiling. Search is deterministic keyword matching with at most 20 returned facts, not vector retrieval. Full-pillar reads and reviews still process every fact; pagination and incremental validation for very large pillars remain future work. No database is required for this beta.
+The current storage engine still parses the full registry internally, and source hashing is synchronous work per tool request. The beta has no database index, background watcher, vector search, or incremental validator. Response pagination limits agent context, not internal compute. Very large knowledge stores need performance evaluation and likely indexed/per-chapter storage before a production claim.
 
-Hashes include local uncommitted source. Changed files, additions, or deletions mark a populated pillar for review; source edits that preserve facts require only a local review. No cross-pillar dependency graph, semantic AST verification, automatic command capture, remote sync, background watcher, or vector index is implemented. Freshness is checked on retrieval. Contract changes across pillars require agents to identify and review each affected pillar; automatic propagation is future work.
+Dependency reviews start from selected fact IDs (or all facts in a chapter), traverse fact dependencies and reverse dependents transitively, and group the result into chapter reviews. Every linked chapter must be reviewed, but only invalidated facts and chapters are rewritten. A dense graph can still produce expensive reviews. Cross-pillar relationships are supported; missing undeclared dependencies cannot be inferred reliably. Shared chapter membership alone does not propagate dependency impact.
 
-Filesystem snapshots are optimistic checks, not an OS-level snapshot of a concurrently edited worktree. The final check narrows but cannot eliminate source-write races. Registry writes are serialized and atomically renamed on the same filesystem. If a process crashes holding the lock, inspect active processes before deleting `.common-ground/local/write.lock`.
+Discovery examines at most 1,500 filesystem entries and proposes up to 30 path hints per category. It recognizes illustrative Azure/GitHub pipeline, Nx/npm, UI, and Java patterns and starts each candidate with an overview chapter. Developers approve an agent-refined map; discovery does not prove exhaustive coverage. Scope validation is limited to 10,000 entries and 2 MB per file. These filesystem limits remain separate from uncapped fact storage.
 
-Avoid secrets in facts and evidence. .env paths are excluded, but the beta does not include a comprehensive secret scanner. Nothing is sent to a remote service by Common Ground; an agent host may independently transmit retrieved tool results to its model provider.
+Semantic entailment, approval UI, automatic command capture, remote sync, scope migration, and native Windows testing remain out of scope. `doctor` currently checks expected file presence and registry validity; it is not a complete MCP-host diagnostic.
 
-Potential next milestones: incremental indexing, dependency-aware invalidation, AST/schema-backed verifiers, better scope overlap analysis, native Windows test coverage, and host-specific VS Code acceptance automation.
+Snapshots are optimistic checks, not OS-level filesystem snapshots. Source changes can occur after the final check. Registry writes are serialized and atomically renamed on one filesystem. If a process crashes holding a lock, confirm no writer remains before deleting `.common-ground/local/write.lock`.
+
+Avoid secrets in records. .env paths are excluded; comprehensive secret scanning is not implemented. Common Ground sends nothing to a remote service, but an agent host may transmit retrieved results to its model provider.

@@ -4,12 +4,17 @@
     "update": {
       "type": "object",
       "properties": {
-        "pillarId": {
-          "type": "string"
+        "chapterId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9-]*$"
         },
-        "expectedRevision": {
-          "type": "integer",
-          "exclusiveMinimum": 0
+        "factIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "minItems": 1
         },
         "touchedPaths": {
           "type": "array",
@@ -19,78 +24,114 @@
           },
           "minItems": 1
         },
-        "invalidatedFactIds": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "reviewedFactIds": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "facts": {
+        "reviews": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9-]*$"
+              "chapterId": {
+                "$ref": "#/definitions/update/properties/chapterId"
               },
-              "statement": {
-                "type": "string",
-                "minLength": 8,
-                "maxLength": 320
+              "expectedRevision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
               },
-              "evidence": {
+              "invalidatedFactIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reviewedFactIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "facts": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
-                    "path": {
-                      "$ref": "#/definitions/update/properties/touchedPaths/items"
+                    "id": {
+                      "$ref": "#/definitions/update/properties/factIds/items"
                     },
-                    "quote": {
+                    "statement": {
                       "type": "string",
-                      "minLength": 1,
-                      "maxLength": 1200
+                      "minLength": 8,
+                      "maxLength": 320
+                    },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "$ref": "#/definitions/update/properties/touchedPaths/items"
+                          },
+                          "quote": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1200
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "quote"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "minItems": 1,
+                      "maxItems": 8
+                    },
+                    "sourceScope": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/update/properties/touchedPaths/items"
+                      },
+                      "minItems": 1
+                    },
+                    "dependsOn": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9-]*$"
+                      },
+                      "default": []
                     }
                   },
                   "required": [
-                    "path",
-                    "quote"
+                    "id",
+                    "statement",
+                    "evidence",
+                    "sourceScope"
                   ],
                   "additionalProperties": false
-                },
-                "minItems": 1,
-                "maxItems": 8
+                }
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 12,
+                "maxLength": 1000
               }
             },
             "required": [
-              "id",
-              "statement",
-              "evidence"
+              "chapterId",
+              "expectedRevision",
+              "invalidatedFactIds",
+              "reviewedFactIds",
+              "facts",
+              "reason"
             ],
             "additionalProperties": false
-          }
-        },
-        "reason": {
-          "type": "string",
-          "minLength": 12,
-          "maxLength": 1000
+          },
+          "minItems": 1
         }
       },
       "required": [
-        "pillarId",
-        "expectedRevision",
+        "chapterId",
         "touchedPaths",
-        "invalidatedFactIds",
-        "reviewedFactIds",
-        "facts",
-        "reason"
+        "reviews"
       ],
       "additionalProperties": false
     }

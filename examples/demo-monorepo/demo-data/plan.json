@@ -1,6 +1,82 @@
-{"pillars":[
-{"id":"ci-cd","title":"CI/CD Pipeline Templates","scope":"Pipeline template parameters and execution contracts.","excludes":"Application behavior and workspace targets.","paths":["pipelines"]},
-{"id":"workspace-tooling","title":"Nx / npm Tooling","scope":"Workspace lint, test and build orchestration.","excludes":"Runtime application and UI behavior.","paths":["package.json","nx.json"]},
-{"id":"web-components","title":"Reusable Web Components","scope":"Reusable UI properties, events and exported contracts.","excludes":"Java backend contracts and workspace targets.","paths":["packages/ui"]},
-{"id":"java-application","title":"Java Application","scope":"Java backend structure and public contracts.","excludes":"Reusable UI behavior and pipeline setup.","paths":["apps/java"]}
-]}
+{
+  "pillars": [
+    {
+      "id": "ci-cd",
+      "title": "CI/CD Pipeline Templates",
+      "scope": "Pipeline template parameters and execution contracts.",
+      "excludes": "Application behavior and workspace targets.",
+      "chapters": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "scope": "Pipeline template parameters and execution contracts.",
+          "excludes": "Application behavior and workspace targets.",
+          "paths": [
+            "pipelines"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workspace-tooling",
+      "title": "Nx / npm Tooling",
+      "scope": "Workspace lint, test and build orchestration.",
+      "excludes": "Runtime application and UI behavior.",
+      "chapters": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "scope": "Workspace lint, test and build orchestration.",
+          "excludes": "Runtime application and UI behavior.",
+          "paths": [
+            "package.json",
+            "nx.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "web-components",
+      "title": "Reusable Web Components",
+      "scope": "Reusable UI properties, events and exported contracts.",
+      "excludes": "Java backend contracts and workspace targets.",
+      "chapters": [
+        {
+          "id": "search",
+          "title": "Search",
+          "scope": "Reusable search input properties and search thresholds.",
+          "excludes": "Result rendering and backend search.",
+          "paths": [
+            "packages/ui/search.ts"
+          ]
+        },
+        {
+          "id": "results",
+          "title": "Search Results",
+          "scope": "Reusable result list contracts and search dependencies.",
+          "excludes": "Search input configuration and backend services.",
+          "paths": [
+            "packages/ui/results.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "java-application",
+      "title": "Java Application",
+      "scope": "Java backend structure and public contracts.",
+      "excludes": "Reusable UI behavior and pipeline setup.",
+      "chapters": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "scope": "Java backend structure and public contracts.",
+          "excludes": "Reusable UI behavior and pipeline setup.",
+          "paths": [
+            "apps/java"
+          ]
+        }
+      ]
+    }
+  ]
+}

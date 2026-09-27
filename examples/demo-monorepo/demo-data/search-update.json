@@ -1,26 +1,65 @@
 {
-  "pillarId": "web-components",
-  "expectedRevision": 1,
+  "chapterId": "web-components/search",
   "touchedPaths": [
     "packages/ui/search.ts"
   ],
-  "invalidatedFactIds": [
-    "search-minimum"
-  ],
-  "reviewedFactIds": [
-    "search-minimum"
-  ],
-  "facts": [
+  "reviews": [
     {
-      "id": "search-minimum",
-      "statement": "The search component exports SEARCH_MIN_LENGTH as 3.",
-      "evidence": [
+      "expectedRevision": 1,
+      "invalidatedFactIds": [
+        "search-minimum"
+      ],
+      "reviewedFactIds": [
+        "search-minimum"
+      ],
+      "facts": [
         {
-          "path": "packages/ui/search.ts",
-          "quote": "export const SEARCH_MIN_LENGTH = 3;"
+          "id": "search-minimum",
+          "statement": "The search component exports SEARCH_MIN_LENGTH as 3.",
+          "evidence": [
+            {
+              "path": "packages/ui/search.ts",
+              "quote": "export const SEARCH_MIN_LENGTH = 3;"
+            }
+          ],
+          "sourceScope": [
+            "packages/ui/search.ts"
+          ],
+          "dependsOn": []
         }
-      ]
+      ],
+      "reason": "The authorized demo change raises the minimum search length from 2 to 3.",
+      "chapterId": "web-components/search"
+    },
+    {
+      "chapterId": "web-components/results",
+      "expectedRevision": 1,
+      "invalidatedFactIds": [],
+      "reviewedFactIds": [
+        "shared-search-threshold"
+      ],
+      "facts": [
+        {
+          "id": "shared-search-threshold",
+          "statement": "The result list uses SEARCH_MIN_LENGTH to validate queries.",
+          "evidence": [
+            {
+              "path": "packages/ui/results.ts",
+              "quote": "query.length >= SEARCH_MIN_LENGTH"
+            }
+          ],
+          "sourceScope": [
+            "packages/ui/results.ts"
+          ],
+          "dependsOn": [
+            "web-components/search/search-minimum"
+          ]
+        }
+      ],
+      "reason": "The result list still uses the shared threshold; its fact remains true."
     }
   ],
-  "reason": "The authorized demo change raises the minimum search length from 2 to 3."
+  "factIds": [
+    "search-minimum"
+  ]
 }

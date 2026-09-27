@@ -7,6 +7,10 @@
         "path": "apps/java/src/Application.java",
         "quote": "public static final String EVENT_VERSION = \"v1\";"
       }
-    ]
+    ],
+    "sourceScope": [
+      "apps/java/src/Application.java"
+    ],
+    "dependsOn": []
   }
 ]

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "shared-search-threshold",
+    "statement": "The result list uses SEARCH_MIN_LENGTH to validate queries.",
+    "evidence": [
+      {
+        "path": "packages/ui/results.ts",
+        "quote": "query.length >= SEARCH_MIN_LENGTH"
+      }
+    ],
+    "sourceScope": [
+      "packages/ui/results.ts"
+    ],
+    "dependsOn": [
+      "web-components/search/search-minimum"
+    ]
+  }
+]
