@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { Store } from './store.js';
 import { Update, chapterKey } from './model.js';
+import { version } from './version.js';
 const result = (data: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(data,null,2) }] });
 const digest=(data:unknown)=>createHash('sha256').update(JSON.stringify(data)).digest('hex');
 export function page<T>(items:T[],cursor?:string,limit=10,version='') {
@@ -35,7 +36,7 @@ export async function search(store:Store,query:string,limit=8,chapterId?:string)
   return matches.map(m=>({...m,freshness:states.get(m.chapterId)}));
 }
 export function createServer(store:Store){
-  const server=new McpServer({name:'common-ground',version:'0.2.0-beta.1'});
+  const server=new McpServer({name:'common-ground',version});
   const paging={cursor:z.string().optional(),limit:z.number().int().min(1).max(20).optional()};
   const register=(name:string,description:string,inputSchema:any,readOnly:boolean,fn:(args:any)=>Promise<unknown>)=>server.registerTool(name,{description,inputSchema,annotations:{readOnlyHint:readOnly,destructiveHint:!readOnly,openWorldHint:false}},async(args:any)=>{try{return result(await fn(args));}catch(e:any){return {...result({error:e.message}),isError:true};}});
   register('list_pillars','List repository responsibility boundaries without loading facts.',paging,true,({cursor,limit})=>listPillars(store,cursor,limit));

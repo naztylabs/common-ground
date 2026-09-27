@@ -10,6 +10,8 @@ test('real stdio MCP handshake, discovery, retrieval, and validation errors',asy
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'cground-mcp-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));await fs.mkdir(path.join(root,'app'));await fs.writeFile(path.join(root,'app/a.txt'),'format=v1');
  const store=new Store(root);await store.approveDefinitions([{id:'app',title:'Application',scope:'Application schemas and contracts.',excludes:'CI configuration.',chapters:[{id:'overview',title:'Overview',scope:'Application schemas and contracts.',excludes:'CI configuration.',paths:['app']}]}]);
  const client=new Client({name:'beta-test',version:'1.0.0'});const transport=new StdioClientTransport({command:process.execPath,args:[path.resolve('dist/cli.js'),'serve','--root',root],stderr:'pipe'});await client.connect(transport);t.after(()=>client.close());
+ const manifest=JSON.parse(await fs.readFile(new URL('../package.json',import.meta.url),'utf8'));
+ assert.equal(client.getServerVersion().version,manifest.version);
  const listed=await client.listTools();assert.equal(listed.tools.length,8);assert.ok(!listed.tools.some(x=>/create|approve|seed/.test(x.name)));
  const result=await client.callTool({name:'list_pillars',arguments:{}});assert.match(result.content[0].text,/Application/);
  const index=await client.callTool({name:'list_chapters',arguments:{pillarId:'app'}});assert.match(index.content[0].text,/app\/overview/);

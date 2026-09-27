@@ -22,6 +22,16 @@ const review=(overrides={})=>({chapterId:KEY,expectedRevision:1,invalidatedFactI
 const update=(overrides={})=>({chapterId:KEY,touchedPaths:['app/schema.txt'],reviews:[review()],...overrides});
 const noop=()=>update({reviews:[review({facts:[fact()],invalidatedFactIds:[]})]});
 
+test('CLI reads the installed package version after a version bump',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'cground-version-'));
+ t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ await fs.cp(new URL('../dist/',import.meta.url),path.join(root,'dist'),{recursive:true});
+ await fs.symlink(path.resolve('node_modules'),path.join(root,'node_modules'),'junction');
+ await fs.writeFile(path.join(root,'package.json'),JSON.stringify({type:'module',version:'9.8.7-beta.6'}));
+ const output=execFileSync(process.execPath,[path.join(root,'dist/cli.js'),'--version'],{encoding:'utf8'});
+ assert.equal(output.trim(),'9.8.7-beta.6');
+});
+
 test('freshness detects drift without rewriting shared knowledge',async t=>{const {store,write}=await fixture(t);const before=await fs.readFile(store.file('knowledge.json'),'utf8');await write('format=v1\n# comment');assert.equal((await store.status(KEY)).status,'needs-review');assert.equal(await fs.readFile(store.file('knowledge.json'),'utf8'),before);});
 test('complete no-op review updates only local validation state',async t=>{const {store,write}=await fixture(t);await write('format=v1\n# comment');const before=await fs.readFile(store.file('knowledge.json'),'utf8');assert.deepEqual(await store.prepare(noop()),{noop:true});assert.equal((await store.status(KEY)).locallyReviewed,true);assert.equal(await fs.readFile(store.file('knowledge.json'),'utf8'),before);await write('format=v1\n# changed again');assert.equal((await store.status(KEY)).status,'needs-review');});
 test('changed facts commit to the existing chapter',async t=>{const {store,write}=await fixture(t);await write('format=v2');const p=await store.prepare(update());assert.deepEqual((await store.commit(p.proposalId)).changedChapters,[KEY]);assert.equal((await get(store)).revision,2);assert.equal((await get(store)).facts[0].statement,fact('v2').statement);});

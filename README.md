@@ -30,18 +30,41 @@ Exact quotes and hashes establish evidence presence and freshness; they do not p
 
 ## Install the beta
 
-Requires Node.js 22+ and npm; source development targets Node 24 through `.nvmrc`. This package has not been published to npm.
+Requires Node.js 22+ and npm; source development targets Node 24 through `.nvmrc`. Distribution uses GitHub Releases; this package has not been published to npmjs.com.
+
+Once a version is released, download its `common-ground-knowledge-VERSION.tgz` asset from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install the downloaded file. For example, for `0.2.0-beta.1`:
 
 ```sh
-nvm use                 # with nvm; run nvm install first if needed
-npm install
-npm test
-npm pack
 npm install -g ./common-ground-knowledge-0.2.0-beta.1.tgz
 cground --version
 ```
 
+Choose the `.tgz` release asset, not GitHub's automatically generated source archives. npm installs the runtime dependencies during installation, so registry access is still required. GitHub hosts Common Ground itself; Node.js remains its runtime.
+
+To build an archive from a clone:
+
+```sh
+nvm use                 # with nvm; run nvm install first if needed
+npm ci
+npm run release:pack
+npm install -g ./release/common-ground-knowledge-0.2.0-beta.1.tgz
+cground --version
+```
+
 No model API key, telemetry, cloud service, or vector database is required. The MCP host launches the local stdio process on demand. The package name is provisional.
+
+## Publish a GitHub release
+
+`npm run release:pack` tests the project, runs the synthetic demo, builds the package and schemas, and writes a `.tgz` archive plus a SHA-256 checksum to the ignored `release/` directory. It does not upload anything.
+
+After committing the release workflow and changes, push a tag that matches `package.json`. For the current version:
+
+```sh
+git tag -a v0.2.0-beta.1 -m "Common Ground 0.2.0-beta.1"
+git push origin v0.2.0-beta.1
+```
+
+The GitHub Actions workflow validates the tag, runs the same packaging checks, tests an isolated archive installation, and creates a release with both assets. Beta versions become prereleases. It uses GitHub's built-in token and needs no npm account or npm publishing token. See [release setup, versioning, and troubleshooting](docs/releases.md).
 
 ## Initialize and populate a repository
 
