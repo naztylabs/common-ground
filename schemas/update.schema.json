@@ -75,8 +75,7 @@
               "evidence"
             ],
             "additionalProperties": false
-          },
-          "maxItems": 50
+          }
         },
         "reason": {
           "type": "string",

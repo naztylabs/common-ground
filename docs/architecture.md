@@ -10,7 +10,7 @@
 
 Discovery inspects at most 1,500 filesystem entries, excludes common generated folders and .env names, reads filenames rather than entire source contents, and proposes up to 30 path hints per detected category. It reports incomplete discovery and does not establish exhaustive coverage. It recognizes illustrative Azure/GitHub pipeline, Nx/npm, UI, and Java patterns; a developer or coding agent must refine the proposal for other architectures.
 
-Scope validation is limited to 10,000 entries and 2 MB per file. Broad scopes containing binary assets may be unsuitable. Search is deterministic keyword matching with at most 20 returned facts, not vector retrieval. No database is required for this beta.
+Scope validation is limited to 10,000 entries and 2 MB per file. Broad scopes containing binary assets may be unsuitable. Pillars have no fixed fact-count ceiling. Search is deterministic keyword matching with at most 20 returned facts, not vector retrieval. Full-pillar reads and reviews still process every fact; pagination and incremental validation for very large pillars remain future work. No database is required for this beta.
 
 Hashes include local uncommitted source. Changed files, additions, or deletions mark a populated pillar for review; source edits that preserve facts require only a local review. No cross-pillar dependency graph, semantic AST verification, automatic command capture, remote sync, background watcher, or vector index is implemented. Freshness is checked on retrieval. Contract changes across pillars require agents to identify and review each affected pillar; automatic propagation is future work.
 

@@ -130,7 +130,10 @@ This repository uses Common Ground itself. Ask your agent to list the pillars an
 
 ## Development
 
+The repository targets Node.js 24 for development through `.nvmrc`. With nvm installed, run `nvm install` once if needed, then select the project version:
+
 ```sh
+nvm use
 npm install
 npm test
 npm run demo

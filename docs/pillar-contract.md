@@ -2,6 +2,8 @@
 
 A pillar owns a stable responsibility. A feature belongs in its existing owner. Path scopes are literal repository-relative files or directories, not glob expressions. Scopes must not overlap. This is a conservative beta ownership check; semantic independence is a developer decision.
 
+There is no fixed limit on the number of facts in a pillar or a complete revision. Admission validates the entire resulting pillar before writing it. Retrieval response limits do not limit stored knowledge.
+
 Facts have stable IDs, a statement of at most 320 characters, and one or more exact evidence quotes. Evidence must lie within the pillar's scope. The server rejects missing quotes, symlinks, traversal, duplicate IDs, and excluded paths. A matching quote verifies evidence presence, not entailment.
 
 ## Update request

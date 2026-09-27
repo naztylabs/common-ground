@@ -89,8 +89,7 @@
                     "evidence"
                   ],
                   "additionalProperties": false
-                },
-                "maxItems": 50
+                }
               },
               "sources": {
                 "type": "object",

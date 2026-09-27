@@ -9,7 +9,7 @@ import { initialize } from '../dist/init.js';
 import { search } from '../dist/server.js';
 const definition={id:'java',title:'Java Application',scope:'Java application contracts and behavior.',excludes:'Reusable UI components.',paths:['app']};
 const fact=(value='v1')=>({id:'format',statement:`The application accepts ${value} events.`,evidence:[{path:'app/schema.txt',quote:`format=${value}`} ]});
-async function fixture(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'cground-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));await fs.mkdir(path.join(root,'app'));await fs.writeFile(path.join(root,'app/schema.txt'),'format=v1\n');const store=new Store(root);await store.approveDefinitions([definition]);await store.seed('java',[fact()]);return {root,store,write:(v)=>fs.writeFile(path.join(root,'app/schema.txt'),v)};}
+async function fixture(t, initialFacts = [fact()]){const root=await fs.mkdtemp(path.join(os.tmpdir(),'cground-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));await fs.mkdir(path.join(root,'app'));await fs.writeFile(path.join(root,'app/schema.txt'),'format=v1\n');const store=new Store(root);await store.approveDefinitions([definition]);await store.seed('java',initialFacts);return {root,store,write:(v)=>fs.writeFile(path.join(root,'app/schema.txt'),v)};}
 const update=()=>({pillarId:'java',expectedRevision:1,touchedPaths:['app/schema.txt'],invalidatedFactIds:['format'],reviewedFactIds:['format'],facts:[fact('v2')],reason:'The authorized schema change replaces v1 with v2.'});
 test('freshness reflects source drift without rewriting knowledge',async t=>{const {store,write}=await fixture(t);const before=await fs.readFile(store.file('knowledge.json'),'utf8');assert.equal((await store.status((await store.read()).pillars[0])).status,'evidence-unchanged');await write('format=v1\n# harmless comment');assert.equal((await store.status((await store.read()).pillars[0])).status,'needs-review');assert.equal(await fs.readFile(store.file('knowledge.json'),'utf8'),before);});
 test('unchanged facts produce no write even after harmless source changes',async t=>{const {store,write}=await fixture(t);await write('format=v1\n# comment');const before=(await fs.stat(store.file('knowledge.json'))).mtimeMs;assert.deepEqual(await store.prepare({...update(),facts:[fact()]}),{noop:true});assert.equal((await fs.stat(store.file('knowledge.json'))).mtimeMs,before);});
@@ -53,3 +53,55 @@ for (const existingIgnore of [null, '# Existing rules\nnode_modules/\n*.log']) {
     assert.equal(first.split('# common-ground:start').length - 1, 1);
   });
 }
+
+const numberedFacts = (start, count) => Array.from({ length: count }, (_, i) => ({
+  ...fact(), id: `fact-${start + i}`,
+}));
+
+for (const [existing, additions] of [[50, 1], [49, 2], [250, 100]]) {
+  test(`fact admission remains readable beyond the former cap: ${existing} + ${additions}`, async t => {
+    const { store } = await fixture(t, numberedFacts(0, existing));
+    const previous = (await store.read()).pillars[0];
+    const result = await store.admit('java', numberedFacts(existing, additions));
+    assert.equal(result.facts.length, existing + additions);
+    assert.equal(result.revision, previous.revision + 1);
+    assert.deepEqual((await store.read()).pillars[0], result);
+  });
+}
+
+test('large pillars support full reviewed updates without a fact-count cap', async t => {
+  const facts = numberedFacts(0, 300);
+  const { store, write } = await fixture(t, facts);
+  await write('format=v1\nformat=v2');
+  const next = [{ ...fact('v2'), id: facts[0].id }, ...facts.slice(1)];
+  const proposal = await store.prepare({
+    ...update(), invalidatedFactIds: [facts[0].id],
+    reviewedFactIds: facts.map(f => f.id), facts: next,
+  });
+  const committed = await store.commit(proposal.proposalId);
+  assert.equal(committed.facts.length, 300);
+  assert.deepEqual(committed.facts, next);
+  assert.deepEqual((await store.read()).pillars[0], committed);
+});
+
+for (const invalid of [
+  { ...fact(), id: 'malformed', statement: '' },
+  { ...fact(), id: 'fact-0' },
+]) {
+  test(`invalid admission preserves a large registry: ${invalid.id}`, async t => {
+    const { store } = await fixture(t, numberedFacts(0, 51));
+    const before = await fs.readFile(store.file('knowledge.json'), 'utf8');
+    const previous = (await store.read()).pillars[0];
+    await assert.rejects(() => store.admit('java', [invalid]));
+    assert.equal(await fs.readFile(store.file('knowledge.json'), 'utf8'), before);
+    assert.deepEqual((await store.read()).pillars[0], previous);
+    assert.deepEqual(await store.admit('java', []), previous);
+  });
+}
+
+test('published schemas have no fact-count ceiling', async () => {
+  const knowledge = JSON.parse(await fs.readFile(new URL('../schemas/knowledge.schema.json', import.meta.url), 'utf8'));
+  const updateSchema = JSON.parse(await fs.readFile(new URL('../schemas/update.schema.json', import.meta.url), 'utf8'));
+  assert.equal(knowledge.definitions.knowledge.properties.pillars.items.properties.facts.maxItems, undefined);
+  assert.equal(updateSchema.definitions.update.properties.facts.maxItems, undefined);
+});

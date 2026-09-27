@@ -116,7 +116,10 @@ export class Store {
       if (!pillar) throw new Error('Unknown pillar');
       const parsed = Registry.shape.pillars.element.shape.facts.parse(additions);
       if (!parsed.length) return pillar;
-      const next = { ...pillar, revision: pillar.revision + 1, facts: [...pillar.facts, ...parsed] };
+      // Validate the complete candidate, including existing facts, before any write.
+      const next = Registry.shape.pillars.element.parse({
+        ...pillar, revision: pillar.revision + 1, facts: [...pillar.facts, ...parsed],
+      });
       await this.validateFacts(next); next.sources = await this.snapshot(next);
       registry.pillars[registry.pillars.indexOf(pillar)] = next;
       await this.atomic('knowledge.json',registry); return next;
