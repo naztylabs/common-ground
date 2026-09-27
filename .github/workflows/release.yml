@@ -1,0 +1,59 @@
+name: GitHub release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Verify tag matches package version
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
+          if (process.env.RELEASE_TAG !== `v${version}`) {
+            throw new Error(`Release tag must be v${version}; got ${process.env.RELEASE_TAG}`);
+          }
+          NODE
+      - run: npm ci
+      - name: Test, demo, build, and pack
+        run: npm run release:pack
+      - name: Verify archive installation
+        run: |
+          npm install --global --prefix "$RUNNER_TEMP/common-ground-install" ./release/*.tgz
+          actual=$("$RUNNER_TEMP/common-ground-install/bin/cground" --version)
+          test "$actual" = "${RELEASE_TAG#v}"
+          "$RUNNER_TEMP/common-ground-install/bin/cground" --help
+          (cd release && sha256sum --check *.sha256)
+      - name: Publish GitHub release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          flags=(--verify-tag --generate-notes --title "$RELEASE_TAG")
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$RELEASE_TAG" ./release/*.tgz ./release/*.sha256 "${flags[@]}"

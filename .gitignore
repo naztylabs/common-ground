@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.tgz
+/release/
 .common-ground/local/
 
 # common-ground:start
