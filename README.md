@@ -142,4 +142,4 @@ MIT licensed. All fixtures are synthetic; no employer code or internal project k
 
 ## Contributors
 
-- **OpenAI Codex** — AI-assisted architecture, implementation, tests, and documentation, guided and reviewed by the project developer.
+- **OpenAI Codex** — AI-assisted architecture, implementation, tests, and documentation, guided and reviewed by Tyler Nazifi.
