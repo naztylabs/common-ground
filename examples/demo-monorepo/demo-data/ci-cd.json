@@ -7,6 +7,10 @@
         "path": "pipelines/build.yml",
         "quote": "default: '22.x'"
       }
-    ]
+    ],
+    "sourceScope": [
+      "pipelines/build.yml"
+    ],
+    "dependsOn": []
   }
 ]

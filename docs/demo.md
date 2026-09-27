@@ -1,32 +1,34 @@
-# Demo the local beta
+# Demo the chapter beta
 
-Build and pack Common Ground, then install the tarball globally using npm. It has not been published to the registry.
-
-Copy `examples/demo-monorepo` to a separate demo directory. From the copy:
+Build and pack the source, then install the resulting `common-ground-knowledge-0.2.0-beta.1.tgz` using npm. Copy `examples/demo-monorepo` to a separate directory and run:
 
 ```sh
 cground init
 cground approve demo-data/plan.json --approve
-cground seed ci-cd demo-data/ci-cd.json --approve
-cground seed workspace-tooling demo-data/workspace-tooling.json --approve
-cground seed web-components demo-data/web-components.json --approve
-cground seed java-application demo-data/java-application.json --approve
-cground check
-cground search search
+cground seed ci-cd/overview demo-data/ci-cd.json --approve
+cground seed workspace-tooling/overview demo-data/workspace-tooling.json --approve
+cground seed web-components/search demo-data/web-components.json --approve
+cground seed web-components/results demo-data/web-results.json --approve
+cground seed java-application/overview demo-data/java-application.json --approve
+cground chapters web-components
+cground read web-components/search
+cground fact web-components/search search-minimum
+cground review-plan web-components/search --facts search-minimum
 ```
 
-The supplied plan is reviewed synthetic fixture data; on a real repository review the discovered proposal with its owner. Initialize Git if needed, and commit source, instructions, MCP config, and `.common-ground/knowledge.json`. Local proposals remain ignored.
+The supplied plan is synthetic reviewed fixture data. Real initialization requires an agent to explain and refine the proposed ownership map with the developer.
 
-Open this directory in VS Code. Start Common Ground with MCP: List Servers. Ask Copilot to list the pillars and describe the reusable search contract with its evidence.
+Open the directory in VS Code and start Common Ground with MCP: List Servers. Ask Copilot to list a pillar's chapters, select Search, and explain its facts. Check that eight tools are available. Commit source, shared registry, instructions, and MCP configuration; local metadata remains ignored.
 
-Change `SEARCH_MIN_LENGTH = 2` to `SEARCH_MIN_LENGTH = 3` in `packages/ui/search.ts`. `cground check` should report drift for the UI pillar only. Prepare the provided full-pillar revision:
+Change `SEARCH_MIN_LENGTH = 2` to `SEARCH_MIN_LENGTH = 3` in `packages/ui/search.ts`. The Results validation fact depends on the Search threshold fact, so both chapters must be reviewed:
 
 ```sh
+cground review-plan web-components/search --facts search-minimum
 cground prepare demo-data/search-update.json
 cground commit PASTE_RETURNED_PROPOSAL_ID
 cground check
 ```
 
-Review the Git diff: the UI fact, its baseline, and its revision changed. No new pillar appeared. A second developer receiving the commit can read the same facts from their own local MCP server.
+The request corrects the Search fact and includes an unchanged full review of Results. Publication increments Search's revision only. Results still uses the shared constant, so its existing assertion remains true. The local review record acknowledges the dependency check without rewriting valid shared knowledge.
 
-Also demonstrate restraint: edit only a source comment, review the pillar with unchanged facts, and observe that shared knowledge is untouched. Automated tests cover this scenario and source/conflict rejection.
+For an automated version, run `npm run demo` from the Common Ground source directory. It copies the fixture to a temporary directory and prints its location. These fixtures illustrate contracts; they are not a complete runnable Nx/Java application stack.
