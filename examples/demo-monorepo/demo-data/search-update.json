@@ -1,0 +1,26 @@
+{
+  "pillarId": "web-components",
+  "expectedRevision": 1,
+  "touchedPaths": [
+    "packages/ui/search.ts"
+  ],
+  "invalidatedFactIds": [
+    "search-minimum"
+  ],
+  "reviewedFactIds": [
+    "search-minimum"
+  ],
+  "facts": [
+    {
+      "id": "search-minimum",
+      "statement": "The search component exports SEARCH_MIN_LENGTH as 3.",
+      "evidence": [
+        {
+          "path": "packages/ui/search.ts",
+          "quote": "export const SEARCH_MIN_LENGTH = 3;"
+        }
+      ]
+    }
+  ],
+  "reason": "The authorized demo change raises the minimum search length from 2 to 3."
+}

@@ -1,0 +1,6 @@
+{"pillars":[
+{"id":"ci-cd","title":"CI/CD Pipeline Templates","scope":"Pipeline template parameters and execution contracts.","excludes":"Application behavior and workspace targets.","paths":["pipelines"]},
+{"id":"workspace-tooling","title":"Nx / npm Tooling","scope":"Workspace lint, test and build orchestration.","excludes":"Runtime application and UI behavior.","paths":["package.json","nx.json"]},
+{"id":"web-components","title":"Reusable Web Components","scope":"Reusable UI properties, events and exported contracts.","excludes":"Java backend contracts and workspace targets.","paths":["packages/ui"]},
+{"id":"java-application","title":"Java Application","scope":"Java backend structure and public contracts.","excludes":"Reusable UI behavior and pipeline setup.","paths":["apps/java"]}
+]}

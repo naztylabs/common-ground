@@ -1,0 +1,17 @@
+import { promises as fs } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { Store } from '../dist/store.js';
+import path from 'node:path';
+import os from 'node:os';
+const root=await fs.mkdtemp(path.join(os.tmpdir(),'common-ground-demo-'));
+await fs.cp('examples/demo-monorepo',root,{recursive:true});
+const cli=path.resolve('dist/cli.js');
+const run=(...args)=>execFileSync(process.execPath,[cli,...args,'--root',root],{encoding:'utf8'});
+run('init');run('approve',path.join(root,'demo-data/plan.json'),'--approve');
+for(const id of ['ci-cd','workspace-tooling','web-components','java-application'])run('seed',id,path.join(root,`demo-data/${id}.json`),'--approve');
+console.log(run('check'));
+const component=path.join(root,'packages/ui/search.ts');await fs.writeFile(component,(await fs.readFile(component,'utf8')).replace('= 2;','= 3;'));
+const proposal=JSON.parse(run('prepare',path.join(root,'demo-data/search-update.json')));
+console.log(run('commit',proposal.proposalId));
+const result=await new Store(root).read();if(result.pillars.length!==4||result.pillars.find(p=>p.id==='web-components').revision!==2)throw new Error('Demo invariant failed');
+console.log(`Demo passed. Inspect temporary repository: ${root}`);

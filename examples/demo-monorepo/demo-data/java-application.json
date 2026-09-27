@@ -1,0 +1,12 @@
+[
+  {
+    "id": "event-version",
+    "statement": "The Java application declares EVENT_VERSION as v1.",
+    "evidence": [
+      {
+        "path": "apps/java/src/Application.java",
+        "quote": "public static final String EVENT_VERSION = \"v1\";"
+      }
+    ]
+  }
+]
