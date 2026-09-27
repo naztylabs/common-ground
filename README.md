@@ -139,3 +139,7 @@ npm run demo
 TypeScript source is in `src/`; Node's test runner covers restraint, evidence validation, no-op updates, conflicts, config preservation, and real stdio MCP communication. The package uses the MCP TypeScript v1 SDK. See [architecture and limits](docs/architecture.md).
 
 MIT licensed. All fixtures are synthetic; no employer code or internal project knowledge is included.
+
+## Contributors
+
+- **OpenAI Codex** — AI-assisted architecture, implementation, tests, and documentation, guided and reviewed by the project developer.
