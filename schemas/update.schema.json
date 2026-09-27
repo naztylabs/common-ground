@@ -1,0 +1,100 @@
+{
+  "$ref": "#/definitions/update",
+  "definitions": {
+    "update": {
+      "type": "object",
+      "properties": {
+        "pillarId": {
+          "type": "string"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "touchedPaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "invalidatedFactIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reviewedFactIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]*$"
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 320
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "$ref": "#/definitions/update/properties/touchedPaths/items"
+                    },
+                    "quote": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1200
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "quote"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1,
+                "maxItems": 8
+              }
+            },
+            "required": [
+              "id",
+              "statement",
+              "evidence"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 50
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "pillarId",
+        "expectedRevision",
+        "touchedPaths",
+        "invalidatedFactIds",
+        "reviewedFactIds",
+        "facts",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

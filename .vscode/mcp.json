@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "commonGround": {
+      "type": "stdio",
+      "command": "cground",
+      "args": [
+        "serve",
+        "--root",
+        "${workspaceFolder}"
+      ]
+    }
+  }
+}

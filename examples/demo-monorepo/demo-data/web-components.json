@@ -1,0 +1,12 @@
+[
+  {
+    "id": "search-minimum",
+    "statement": "The search component exports SEARCH_MIN_LENGTH as 2.",
+    "evidence": [
+      {
+        "path": "packages/ui/search.ts",
+        "quote": "export const SEARCH_MIN_LENGTH = 2;"
+      }
+    ]
+  }
+]

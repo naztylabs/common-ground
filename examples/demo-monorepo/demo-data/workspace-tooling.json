@@ -1,0 +1,12 @@
+[
+  {
+    "id": "build-command",
+    "statement": "The npm build script runs nx run-many -t build.",
+    "evidence": [
+      {
+        "path": "package.json",
+        "quote": "\"build\":\"nx run-many -t build\""
+      }
+    ]
+  }
+]

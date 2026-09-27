@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "pillars": [
+    {
+      "id": "knowledge-engine",
+      "title": "Knowledge Engine",
+      "scope": "Pillar records, evidence validation, freshness, and atomic knowledge revision rules.",
+      "excludes": "Repository initialization and MCP or CLI presentation.",
+      "paths": [
+        "src/model.ts",
+        "src/store.ts",
+        "schemas"
+      ],
+      "revision": 1,
+      "facts": [
+        {
+          "id": "registry-schema",
+          "statement": "The registry uses schemaVersion 1 and contains an array of pillars.",
+          "evidence": [
+            {
+              "path": "src/model.ts",
+              "quote": "schemaVersion: z.literal(1), pillars: z.array(Pillar)"
+            }
+          ]
+        },
+        {
+          "id": "fact-limit",
+          "statement": "Each fact statement is limited to 320 characters and requires at least one evidence quote.",
+          "evidence": [
+            {
+              "path": "src/model.ts",
+              "quote": "statement: z.string().trim().min(8).max(320), evidence: z.array(Evidence).min(1).max(8)"
+            }
+          ]
+        },
+        {
+          "id": "complete-review",
+          "statement": "Routine updates require the IDs of every existing fact in reviewedFactIds.",
+          "evidence": [
+            {
+              "path": "src/store.ts",
+              "quote": "throw new Error('Every existing fact must be reviewed.')"
+            }
+          ]
+        },
+        {
+          "id": "atomic-replacement",
+          "statement": "Shared knowledge writes rename a temporary file over knowledge.json under a writer lock.",
+          "evidence": [
+            {
+              "path": "src/store.ts",
+              "quote": "await fs.rename(tmp, this.file(name))"
+            }
+          ]
+        },
+        {
+          "id": "no-routine-growth",
+          "statement": "Routine fact updates reject facts with IDs absent from the current pillar.",
+          "evidence": [
+            {
+              "path": "src/store.ts",
+              "quote": "throw new Error('New facts require developer-reviewed bootstrap/admission; routine updates cannot grow knowledge.')"
+            }
+          ]
+        }
+      ],
+      "sources": {
+        "schemas/knowledge.schema.json": "3de2ccef2c008d163eab91c133abbe104fe013f15146084a29edf0142699e5d9",
+        "schemas/update.schema.json": "73bfa09f1bc8c264879f142ea811ddd18fc208cf14cd769387deb4fa642f85a0",
+        "src/model.ts": "2c9c63c3a57097085e9905c362f1488323c93e88217d6f65b46faa1c4cf54f99",
+        "src/store.ts": "090a338a4ac361ecf25c9928d9cd14bf2cf1d28ca3be1a0da78cef1cabbb6e82"
+      }
+    },
+    {
+      "id": "repository-setup",
+      "title": "Repository Setup",
+      "scope": "Bounded pillar discovery and managed repository instruction and MCP configuration setup.",
+      "excludes": "Knowledge revision transactions and agent tool execution.",
+      "paths": [
+        "src/init.ts"
+      ],
+      "revision": 1,
+      "facts": [
+        {
+          "id": "bounded-discovery",
+          "statement": "Initialization discovery walks at most 1,500 filesystem entries.",
+          "evidence": [
+            {
+              "path": "src/init.ts",
+              "quote": "const scan = await store.walk([], 1500);"
+            }
+          ]
+        },
+        {
+          "id": "existing-pillars",
+          "statement": "Initialization preserves an existing registry and skips new pillar discovery.",
+          "evidence": [
+            {
+              "path": "src/init.ts",
+              "quote": "existingRegistry:true, message:'Existing pillars preserved. No new discovery or pillar creation.'"
+            }
+          ]
+        },
+        {
+          "id": "copilot-adapter",
+          "statement": "Initialization adds managed root AGENTS.md guidance and a Copilot instruction link.",
+          "evidence": [
+            {
+              "path": "src/init.ts",
+              "quote": "await managed(store,'AGENTS.md',rules);"
+            }
+          ]
+        },
+        {
+          "id": "stdio-config",
+          "statement": "The VS Code MCP entry launches cground serve with the workspace folder as root.",
+          "evidence": [
+            {
+              "path": "src/init.ts",
+              "quote": "const entry = { type:'stdio', command:'cground', args:['serve','--root','${workspaceFolder}'] };"
+            }
+          ]
+        }
+      ],
+      "sources": {
+        "src/init.ts": "573bc8e00d88e647f84c10179931447a7cbc9d045363e49fee57239944addaf5"
+      }
+    },
+    {
+      "id": "agent-interface",
+      "title": "Agent Interface",
+      "scope": "CLI operator commands, local stdio MCP tools, and bounded keyword retrieval.",
+      "excludes": "Persistence implementation and repository discovery.",
+      "paths": [
+        "src/cli.ts",
+        "src/server.ts"
+      ],
+      "revision": 1,
+      "facts": [
+        {
+          "id": "stdio-transport",
+          "statement": "The MCP service connects through StdioServerTransport.",
+          "evidence": [
+            {
+              "path": "src/server.ts",
+              "quote": "await createServer(store).connect(new StdioServerTransport())"
+            }
+          ]
+        },
+        {
+          "id": "retrieval-limit",
+          "statement": "MCP keyword search accepts a maximum limit of 20 facts.",
+          "evidence": [
+            {
+              "path": "src/server.ts",
+              "quote": "limit:z.number().int().min(1).max(20).optional()"
+            }
+          ]
+        },
+        {
+          "id": "developer-approval",
+          "statement": "CLI pillar approval requires the explicit --approve flag.",
+          "evidence": [
+            {
+              "path": "src/cli.ts",
+              "quote": "if(!approved)throw new Error('Developer approval required: inspect the proposal, then pass --approve.')"
+            }
+          ]
+        },
+        {
+          "id": "tool-errors",
+          "statement": "MCP tool failures return isError true with a JSON error message.",
+          "evidence": [
+            {
+              "path": "src/server.ts",
+              "quote": "return {...result({error:e.message}),isError:true};"
+            }
+          ]
+        }
+      ],
+      "sources": {
+        "src/cli.ts": "1ecec56661b558ed03654141d10c144f6e35d8362e0cbc594500d93172952a8c",
+        "src/server.ts": "56b4c2041ee3ec915d51fd907de8ba171af5ae145eeb25368c4e43d3799e9314"
+      }
+    },
+    {
+      "id": "beta-validation",
+      "title": "Beta Validation and Packaging",
+      "scope": "Package entry points, build and schema generation, behavioral tests, and synthetic demo fixtures.",
+      "excludes": "Runtime knowledge engine and agent interface implementation.",
+      "paths": [
+        "package.json",
+        "scripts",
+        "test",
+        "examples",
+        "tsconfig.json"
+      ],
+      "revision": 1,
+      "facts": [
+        {
+          "id": "cli-entry",
+          "statement": "The npm package exposes cground through dist/cli.js.",
+          "evidence": [
+            {
+              "path": "package.json",
+              "quote": "\"cground\": \"dist/cli.js\""
+            }
+          ]
+        },
+        {
+          "id": "test-runner",
+          "statement": "npm test builds TypeScript before running test/*.test.mjs with the Node test runner.",
+          "evidence": [
+            {
+              "path": "package.json",
+              "quote": "\"test\": \"npm run build && node --test test/*.test.mjs\""
+            }
+          ]
+        },
+        {
+          "id": "prepack-schema",
+          "statement": "The prepack script regenerates the published JSON schemas.",
+          "evidence": [
+            {
+              "path": "package.json",
+              "quote": "\"prepack\": \"npm run schema\""
+            }
+          ]
+        },
+        {
+          "id": "synthetic-demo",
+          "statement": "The demo copies a synthetic monorepo to a temporary directory before changing its UI contract.",
+          "evidence": [
+            {
+              "path": "scripts/demo.mjs",
+              "quote": "await fs.cp('examples/demo-monorepo',root,{recursive:true});"
+            }
+          ]
+        }
+      ],
+      "sources": {
+        "examples/demo-monorepo/apps/java/src/Application.java": "24bca277678aa0bb177091e80a65f6719af1b0223e02f9ffa50724f5aafc754e",
+        "examples/demo-monorepo/demo-data/ci-cd.json": "30afc382bdc49dad4c2eea5ca4eae013b0350f63d886c340155fee47649453bd",
+        "examples/demo-monorepo/demo-data/java-application.json": "6e781b1109aed6a68a0d14862d3e370d67863a6a4349beb75dd500f8baa0ef6d",
+        "examples/demo-monorepo/demo-data/plan.json": "1eb3d2ba0d45060c3c218c35cb035b74d7f244015f957a6a50ba54457e7b280a",
+        "examples/demo-monorepo/demo-data/search-update.json": "e11478986f3d8c854bdf7cc992c085af4727921330f375755ff2cacb8e1ed4c6",
+        "examples/demo-monorepo/demo-data/web-components.json": "1012e89e159c12ac3d0850ee82f26138fe098cf93e9d8c1d2c869653cee9fcfc",
+        "examples/demo-monorepo/demo-data/workspace-tooling.json": "d265f7ae04c86c9f520b6f70dd0e71b33f87f6e2b2e0c6947d76e9484a94c899",
+        "examples/demo-monorepo/nx.json": "571b54da478d718d39bfd7c289b70d72d94acb67f4845ab125d916654844126e",
+        "examples/demo-monorepo/package.json": "7db2ad09e386da8569a5096bedbdc8cb22bd15ddbd89ba13cdeafd50b13daf9d",
+        "examples/demo-monorepo/packages/ui/search.ts": "89203564851f70e2cd8cc469a033d36d8cb7c4a2db5f5350856433f1a72eb86f",
+        "examples/demo-monorepo/pipelines/build.yml": "d39e8fe5c66158adfaa3fcf100f5c03a1308a7760c4ac41ff1755961ba6009df",
+        "package.json": "1108e18d063c277f7251de1f3b11dd2180269eef3a2667f3c5cc2f1fefbccb92",
+        "scripts/demo.mjs": "4eca0a0941b0cf0f019b2b60a326dd178aace19c930def2efdad112711c5f8d5",
+        "scripts/schema.mjs": "46689aaefa298d10e655351feb1d5ff90891b609e57400b183bd4a40e5aeee48",
+        "test/core.test.mjs": "9ed2e97f25152265066d22186099dd625547b7d0c5042b735768d0d068ce0611",
+        "test/mcp.test.mjs": "05a3a4caab79a366b741a6404e3c93914ef0d688471083c81943fa2425e8b2fe",
+        "tsconfig.json": "fcf399a4e3e79788d0c1ea7872d83b567b00ff135b146c7275399752bfa5a1c8"
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "node-version",
+    "statement": "The pipeline template defaults nodeVersion to 22.x.",
+    "evidence": [
+      {
+        "path": "pipelines/build.yml",
+        "quote": "default: '22.x'"
+      }
+    ]
+  }
+]
