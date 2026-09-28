@@ -8,7 +8,9 @@ Facts have no count ceiling. A fact statement is limited to 320 characters and r
 
 ## Navigate without loading the whole knowledge base
 
-Start with `start_here` or `.common-ground/START_HERE.md`. `ownership_map` routes registered paths and keyword signals to candidate pillars/chapters. Paths have literal ownership semantics; signal text matches boundary, fact, and evidence tokens and is only a hint. `pillar_graph` groups cross-pillar fact dependencies into directed edges, with example fact references and freshness. It does not infer missing dependencies. All these indexes are paginated.
+In the default profile, start once with `task_context`, then use `read_knowledge` to retrieve bounded indexes, chapters and full evidence batches. Its kinds map to the detailed operations below. To use these original MCP tool names, select `--profile full`; CLI commands remain unchanged.
+
+Start with the full-profile `start_here` or `.common-ground/START_HERE.md`. `ownership_map` routes registered paths and keyword signals to candidate pillars/chapters. Paths have literal ownership semantics; signal text matches boundary, fact, and evidence tokens and is only a hint. `pillar_graph` groups cross-pillar fact dependencies into directed edges, with example fact references and freshness. It does not infer missing dependencies. All these indexes are paginated.
 
 1. `list_pillars` gives responsibility boundaries and chapter counts.
 2. `list_chapters` gives a pillar's chapter index: titles, scopes, revisions, and fact counts. It does not return facts.
@@ -16,6 +18,12 @@ Start with `start_here` or `.common-ground/START_HERE.md`. `ownership_map` route
 4. `read_fact` fetches the evidence for a particular fact. `search_knowledge` offers bounded keyword search, optionally scoped to a chapter.
 
 These response limits do not limit stored facts or chapter counts. Source fingerprints are not dumped into agent read responses.
+
+## Compact patches and task-time admission
+
+`prepare_patch` accepts `taskId`, `chapterId`, optional initiating `factIds`, `touchedPaths`, `verification`, optional `tidyId`, and complete chapter review declarations. Each review carries `chapterId`, `expectedRevision`, `reviewedAllFacts: true`, `reason`, optional `maintenance`, `replacements` containing only changed existing full fact records, and `removeFactIds`. The server reconstructs unchanged facts and the complete reviewed ID set before invoking the validator described below. A stale revision, unknown/duplicate edit ID, missing chapter, or incomplete source/documentation declaration rejects the request. Whole-chapter reading remains mandatory.
+
+Use `propose_facts` for new records during a task; these are local drafts excluded from retrieval. After `task_context finish` and explicit developer approval, `cground accept-facts TASK_ID REVIEW.json --approve` validates a batch. REVIEW.json has `reviews: [{chapterId, expectedRevision, reviewedAllFacts: true}]` and `verification: {sourceFiles, documentFiles}`. Read `read_knowledge` kinds `proposals` and `proposal-review` for the complete drafts and required files/chapters. Admission reviews whole owning chapters and linked chapters and rejects changed draft evidence/dependencies/chapters. Correct stale existing facts before staging additions. Discard rejected entries with `cground drop-facts TASK_ID FACT_KEY...`; an altered draft requires fresh review and approval. See [the quiet workflow](quiet-workflow.md).
 
 ## Dependency-aware review and update
 
@@ -59,7 +67,7 @@ The agent performs the work, then submits a complete verified transaction with t
 
 ## Developer-directed operations
 
-Agents author the records and can execute approved CLI operations. `approve`, `approve-chapters`, `seed`, `admit`, and `migrate` require explicit developer direction and are not MCP tools. An approval flag is a workflow convention, not an identity boundary against a process with filesystem access.
+Agents author the records and can execute approved CLI operations. `approve`, `approve-chapters`, `seed`, `admit`, `accept-facts`, and `migrate` require explicit developer direction and are not MCP tools. An approval flag is a workflow convention, not an identity boundary against a process with filesystem access.
 
 `admit` validates the full resulting chapter and all its evidence. Dependent chapters detect changed dependency fact fingerprints; use `review_plan` afterward. Fact dependency changes caused by authorized work can be included in a reviewed transaction; the required reviews cover both the old and new dependency graphs. Moving chapter ownership or moving existing facts between chapters does not yet have a dedicated operator command.
 

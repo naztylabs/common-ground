@@ -1,0 +1,66 @@
+{
+  "$ref": "#/definitions/admission",
+  "definitions": {
+    "admission": {
+      "type": "object",
+      "properties": {
+        "reviews": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "chapterId": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9-]*$"
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reviewedAllFacts": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "chapterId",
+              "expectedRevision",
+              "reviewedAllFacts"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "verification": {
+          "type": "object",
+          "properties": {
+            "sourceFiles": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "documentFiles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/admission/properties/verification/properties/sourceFiles/items"
+              }
+            }
+          },
+          "required": [
+            "sourceFiles",
+            "documentFiles"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "reviews",
+        "verification"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

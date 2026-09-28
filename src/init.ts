@@ -3,7 +3,7 @@ import path from 'node:path';
 import { parse, modify, applyEdits, type ParseError } from 'jsonc-parser';
 import { Store } from './store.js';
 import type { Definition } from './model.js';
-import { rules, startGuide } from './guidance.js';
+import { rules, startGuide, policy } from './guidance.js';
 export { rules } from './guidance.js';
 export async function discover(store: Store) {
   const scan = await store.walk([], 1500);
@@ -42,6 +42,7 @@ export async function initialize(store: Store) {
   const nextConfig = applyEdits(configText, modify(configText,['servers','commonGround'],entry,{formattingOptions:{insertSpaces:true,tabSize:2}}));
   await managed(store,'AGENTS.md',rules);
   await managed(store,'.common-ground/START_HERE.md',startGuide);
+  await managed(store,'.common-ground/POLICY.md',policy);
   await managed(store,'.github/copilot-instructions.md','Common Ground repository knowledge rules are in [AGENTS.md](../AGENTS.md). Follow its Common Ground section when reading or maintaining pillars.');
   await managed(store,'.gitignore','.common-ground/local/');
   await fs.mkdir(path.dirname(configFile),{recursive:true});

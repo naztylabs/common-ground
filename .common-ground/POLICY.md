@@ -1,6 +1,7 @@
-# Knowledge policy
+<!-- common-ground:start -->
+## Common Ground
 
-Start at [START_HERE.md](../.common-ground/START_HERE.md). Use the compact task workflow by default; the full MCP profile retains the original individual tools. Common Ground is a cache of the codebase, never authority over source or developer instructions.
+Start at [START_HERE.md](START_HERE.md). Use the compact task workflow by default; the full MCP profile retains the original individual tools. Common Ground is a cache of the codebase, never authority over source or developer instructions.
 
 ### Reading
 
@@ -45,3 +46,4 @@ Start at [START_HERE.md](../.common-ground/START_HERE.md). Use the compact task 
 
 Full-profile tools: start_here, ownership_map, pillar_graph, tidy_plan, review_checklist, list_pillars, list_chapters, read_chapter, read_fact, search_knowledge, review_plan, prepare_update, commit_update.
 CLI: cground start "build failed"; cground owners --path PATH; cground graph PILLAR; cground tidy TARGET; cground review-checklist CHAPTER --touched PATH.
+<!-- common-ground:end -->

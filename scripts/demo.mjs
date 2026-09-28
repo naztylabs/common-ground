@@ -1,6 +1,8 @@
 import { promises as fs } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { Store } from '../dist/store.js';
+import { Workflow } from '../dist/workflow.js';
+import { readKnowledge } from '../dist/server.js';
 import path from 'node:path';
 import os from 'node:os';
 const root=await fs.mkdtemp(path.join(os.tmpdir(),'common-ground-demo-'));
@@ -12,11 +14,20 @@ for(const [key,file] of [['workspace-tooling/overview','workspace-tooling'],['ci
 console.log(run('check'));
 console.log(run('owners','--path','pipelines/build.yml'));
 console.log(run('graph','ci-cd'));
+const store=new Store(root),workflow=new Workflow(store);
+const {taskId}=await workflow.start(['packages/ui/search.ts']);
+const read={kind:'chapter',target:'web-components/search',taskId,evidence:true};
+await readKnowledge(store,read);
+if(!(await readKnowledge(store,read)).unchanged)throw new Error('Unchanged context was not reused.');
 const component=path.join(root,'packages/ui/search.ts');await fs.writeFile(component,(await fs.readFile(component,'utf8')).replace('= 2;','= 3;'));
 // Simulate the calling agent opening every required file before declaring verification.
 const request=JSON.parse(await fs.readFile(path.join(root,'demo-data/search-update.json'),'utf8'));
 for(const file of [...request.verification.sourceFiles,...request.verification.documentFiles])await fs.readFile(path.join(root,file),'utf8');
-const proposal=JSON.parse(run('prepare',path.join(root,'demo-data/search-update.json')));
+const patch={...request,taskId,reviews:request.reviews.map(({facts,reviewedFactIds,invalidatedFactIds,...review})=>({...review,reviewedAllFacts:true,replacements:facts.filter(f=>invalidatedFactIds.includes(f.id)),removeFactIds:[]}))};
+const proposal=await workflow.prepare(patch);
 console.log(run('commit',proposal.proposalId));
+const completed=await workflow.finish(taskId);
+if(completed.notification!=='summary'||completed.total!==1)throw new Error('Unexpected task completion summary.');
+console.log(JSON.stringify(completed,null,2));
 const result=await new Store(root).read();if(result.pillars.length!==4||result.pillars.find(p=>p.id==='web-components').chapters.find(c=>c.id==='search').revision!==2||result.pillars.find(p=>p.id==='web-components').chapters.find(c=>c.id==='results').revision!==1)throw new Error('Demo invariant failed');
 console.log(`Demo passed. Inspect temporary repository: ${root}`);

@@ -165,8 +165,11 @@ test('cleanup cannot expand into an unrelated subsystem',async t=>{
 });
 test('init preserves custom Start Here content and CLI tidy issues only local state',async t=>{
   const {root,store}=await fixture(t);await fs.writeFile(store.file('START_HERE.md'),'Custom team introduction.\n');
+  await fs.writeFile(store.file('POLICY.md'),'Custom team policy.\n');
   await initialize(store);const once=await fs.readFile(store.file('START_HERE.md'),'utf8');await initialize(store);
   assert.match(once,/Custom team introduction/);assert.match(once,/My build failed/);assert.equal(await fs.readFile(store.file('START_HERE.md'),'utf8'),once);
+  assert.match(await fs.readFile(store.file('POLICY.md'),'utf8'),/Custom team policy/);
+  assert.match(await fs.readFile(store.file('POLICY.md'),'utf8'),/Quiet task workflow/);
   const before=await fs.readFile(store.file('knowledge.json'),'utf8');
   const result=JSON.parse(execFileSync(process.execPath,[path.resolve('dist/cli.js'),'tidy','tooling','--root',root],{encoding:'utf8'}));
   assert.ok(result.tidyId);assert.equal(await fs.readFile(store.file('knowledge.json'),'utf8'),before);
