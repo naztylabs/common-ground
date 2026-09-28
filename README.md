@@ -18,15 +18,19 @@ There is **no fixed fact-count ceiling**. Read responses are paginated to keep c
 
 ## Intended workflow
 
-1. **Initialize:** the agent uses a brief structural scan to propose core pillars and chapters, checks existing ownership, and explains the boundaries. After developer approval, it populates source-backed facts.
-2. **Retrieve:** list a pillar's chapters, choose the relevant chapter, and read its facts and evidence. Follow pagination only as needed for the task.
-3. **Maintain:** when authorized work invalidates a fact, call `review_plan`, read every fact in each required chapter, and submit one complete review transaction.
-4. **Review dependencies:** `Fact A.dependsOn = [Fact B]` means A relies on B. The beta conservatively includes transitively linked fact dependencies and dependents, then groups them into chapter reviews. Update only facts that are actually invalidated; unchanged chapters are reviewed without being rewritten.
-5. **Preserve boundaries:** features belong in existing chapters. New chapters require developer approval. New pillars additionally require an uncovered standalone responsibility.
-6. **Ask when uncertain:** resolve ambiguity with the developer rather than guessing. Do not opportunistically change unrelated knowledge.
-7. **Do nothing when facts remain true:** a changed source file alone does not justify rewriting shared knowledge.
+1. **Initialize:** the agent proposes stable responsibility boundaries and chapters, then populates source-backed facts after developer approval. Initialization creates a durable `.common-ground/START_HERE.md` guide.
+2. **Find the owner:** use `cground start "build failed"` or `cground owners --path path/from/the/error`. Registered paths identify ownership; signal matches are keyword hints, not diagnoses. Read directory READMEs and inspect scopes before choosing.
+3. **Retrieve and verify:** navigate pillar → chapter → fact. Notes supplement code reading; code is the source of truth. A verified fact requires opening its source in this session, not remembering or inferring it. Branches, submodule checkouts, and other point-in-time state must be checked live every time.
+4. **Review connections:** `cground graph PILLAR` derives cross-pillar relationships from `Fact A.dependsOn = [Fact B]`, meaning A relies on B. Missing edges are unrecorded relationships, not evidence of independence. `review_plan` traces dependencies and dependents for updates.
+5. **Own the touch:** skim every fact page in the affected chapter and review relevant sibling, child, and reference files. Use `review_checklist` to find source and documentation to read. Correct contradictions in the same edit, merge verified near duplicates, remove superseded content, and tighten narrative. Corrections preserve IDs and repair references atomically.
+6. **Preserve boundaries:** prefer existing chapters. New pillars require a new, uncovered, standalone subsystem and explicit approval; chapters, ownership expansion, and fact admission also need developer direction. Library-local detail belongs in its README.
+7. **Default to no write:** document patterns that change how someone reasons about a subsystem, not inventories. When no note update is justified, still verify the modified directory README. Ask when unsure and state what cannot be verified; never keep contradictory versions together.
 
-Exact quotes and hashes establish evidence presence and freshness; they do not prove natural-language interpretations. Agents remain responsible for reviewing the facts and asking when unsure.
+Durable knowledge covers subsystem behavior, architecture, connections, build/deploy mechanics, established conventions, and commands verified in source. It excludes bugs, open issues, work to fix, postmortems, debugging narratives, generic technology explainers, unverified claims, and temporary checkout state.
+
+Any developer can request `cground tidy PILLAR` or `cground tidy PILLAR/CHAPTER/FACT` (a unique fact ID also works). The command creates a plan and local `tidyId`; the calling agent reads source and submits the cleanup. Common Ground remains model-independent and makes no semantic edits automatically. MCP `tidy_plan` previews scope without issuing authorization. See [the complete knowledge policy](docs/knowledge-policy.md).
+
+Exact quotes, review declarations, and hashes do not prove natural-language truth or that an external agent actually read a file. The software checks declared coverage, current evidence, dependency references, scope, and concurrent changes; agents remain responsible for verification and resolving uncertainty.
 
 ## Install the beta
 
@@ -97,7 +101,7 @@ The fact input is an array of records such as:
 }
 ```
 
-Commit `.common-ground/knowledge.json`, the managed instruction files, `.vscode/mcp.json`, and `.gitignore`. `init` creates or updates a marked ignore block for `.common-ground/local/`; existing entries are preserved. Already-tracked files must be explicitly untracked.
+Commit `.common-ground/knowledge.json`, `.common-ground/START_HERE.md`, the managed instruction files, `.vscode/mcp.json`, and `.gitignore`. `init` creates or updates a marked ignore block for `.common-ground/local/`; existing entries are preserved. Already-tracked files must be explicitly untracked.
 
 ## Upgrade a pillar-only beta repository
 
@@ -110,10 +114,17 @@ cground init
 
 Migration preserves every old pillar's facts, scope, source hashes, and revision in an `overview` chapter. It invents no dependencies. A local backup is kept, and repeating migration is a no-op. The initializer refreshes agent instructions to use the new tools. Old pending update proposals must be recreated. See [the record contract](docs/pillar-contract.md).
 
+Existing schema-v2 repositories keep their records. Run `cground init` after upgrading to refresh guidance. New update requests require `verification.sourceFiles` and `verification.documentFiles`; recreate old pending proposals.
+
 ## Agent tools and CLI
 
 | MCP tool | Purpose | CLI |
 |---|---|---|
+| `start_here` | Entry guide and ownership candidates | `cground start "build failed"` |
+| `ownership_map` | Path or signal → owning pillar/chapter | `cground owners --path PATH` |
+| `pillar_graph` | Derived cross-pillar dependency graph | `cground graph PILLAR` |
+| `tidy_plan` | Read-only cleanup preview | `cground tidy TARGET` also issues a local request |
+| `review_checklist` | Source and documentation to verify | `cground review-checklist CHAPTER --touched PATH` |
 | `list_pillars` | Responsibility index; no facts | `cground list` |
 | `list_chapters` | Chapter index for one pillar; no facts | `cground chapters PILLAR` |
 | `read_chapter` | Selected chapter and fact page | `cground read PILLAR/CHAPTER` |
@@ -129,12 +140,12 @@ Publication rejects source changes, conflicting knowledge revisions, unrelated e
 
 ## VS Code Copilot
 
-`init` merges a managed `AGENTS.md` section, a Copilot instruction link, and `.vscode/mcp.json`, preserving existing guidance and JSONC comments.
+`init` writes the Start Here guide and merges a managed `AGENTS.md` section, a Copilot instruction link, and `.vscode/mcp.json`, preserving existing guidance and JSONC comments.
 
 1. Ensure `cground` is on VS Code's PATH; restart VS Code after installing if needed.
 2. Open the repository and use **MCP: List Servers** to start Common Ground, completing normal host trust prompts.
-3. In Copilot agent chat, check that the eight tools are available.
-4. Ask the agent to list a pillar's chapters, choose the relevant one, and explain its facts.
+3. In Copilot agent chat, check that the thirteen tools are available.
+4. Ask the agent where to start with a build failure, then navigate its suggested pillar and chapters and verify the facts in source.
 
 For other MCP clients, launch `cground serve --root /absolute/repository/path`. Remote SSH or dev-container sessions need the package installed in that environment. This targets agent chat, not inline completion. Automated tests cover the real stdio protocol; manual VS Code GUI acceptance remains a separate check.
 
@@ -144,7 +155,7 @@ For other MCP clients, launch `cground serve --root /absolute/repository/path`. 
 npm run demo
 ```
 
-The synthetic monorepo includes Azure pipeline, Nx/npm, UI, and Java contracts. Its UI pillar indexes Search and Search Results chapters; the result-validation fact depends on the search-threshold fact. The demo changes Search, reviews both, and publishes only the invalidated chapter. These fixtures are not a runnable full application stack. See [manual demo steps](docs/demo.md).
+The synthetic monorepo includes Azure pipeline, Nx/npm, UI, and Java contracts, with a verified CI → workspace tooling dependency. Its UI pillar indexes Search and Search Results chapters; the result-validation fact depends on the search-threshold fact. The demo changes Search, reviews both, and publishes only the invalidated chapter. These fixtures are not a runnable full application stack. See [manual demo steps](docs/demo.md).
 
 Common Ground uses its own registry. Ask your agent to list its pillars and chapters, then explain the relevant facts with evidence. Current source remains authoritative.
 

@@ -8,9 +8,14 @@ await fs.cp('examples/demo-monorepo',root,{recursive:true});
 const cli=path.resolve('dist/cli.js');
 const run=(...args)=>execFileSync(process.execPath,[cli,...args,'--root',root],{encoding:'utf8'});
 run('init');run('approve',path.join(root,'demo-data/plan.json'),'--approve');
-for(const [key,file] of [['ci-cd/overview','ci-cd'],['workspace-tooling/overview','workspace-tooling'],['web-components/search','web-components'],['web-components/results','web-results'],['java-application/overview','java-application']])run('seed',key,path.join(root,`demo-data/${file}.json`),'--approve');
+for(const [key,file] of [['workspace-tooling/overview','workspace-tooling'],['ci-cd/overview','ci-cd'],['web-components/search','web-components'],['web-components/results','web-results'],['java-application/overview','java-application']])run('seed',key,path.join(root,`demo-data/${file}.json`),'--approve');
 console.log(run('check'));
+console.log(run('owners','--path','pipelines/build.yml'));
+console.log(run('graph','ci-cd'));
 const component=path.join(root,'packages/ui/search.ts');await fs.writeFile(component,(await fs.readFile(component,'utf8')).replace('= 2;','= 3;'));
+// Simulate the calling agent opening every required file before declaring verification.
+const request=JSON.parse(await fs.readFile(path.join(root,'demo-data/search-update.json'),'utf8'));
+for(const file of [...request.verification.sourceFiles,...request.verification.documentFiles])await fs.readFile(path.join(root,file),'utf8');
 const proposal=JSON.parse(run('prepare',path.join(root,'demo-data/search-update.json')));
 console.log(run('commit',proposal.proposalId));
 const result=await new Store(root).read();if(result.pillars.length!==4||result.pillars.find(p=>p.id==='web-components').chapters.find(c=>c.id==='search').revision!==2||result.pillars.find(p=>p.id==='web-components').chapters.find(c=>c.id==='results').revision!==1)throw new Error('Demo invariant failed');

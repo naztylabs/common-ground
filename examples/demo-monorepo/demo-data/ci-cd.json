@@ -12,5 +12,21 @@
       "pipelines/build.yml"
     ],
     "dependsOn": []
+  },
+  {
+    "id": "workspace-build",
+    "statement": "The pipeline delegates its build step to the workspace npm build script.",
+    "sourceScope": [
+      "pipelines/build.yml"
+    ],
+    "dependsOn": [
+      "workspace-tooling/overview/build-command"
+    ],
+    "evidence": [
+      {
+        "path": "pipelines/build.yml",
+        "quote": "- script: npm run build"
+      }
+    ]
   }
 ]

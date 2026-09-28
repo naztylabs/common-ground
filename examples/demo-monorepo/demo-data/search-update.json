@@ -61,5 +61,15 @@
   ],
   "factIds": [
     "search-minimum"
-  ]
+  ],
+  "verification": {
+    "sourceFiles": [
+      "packages/ui/search.ts",
+      "packages/ui/results.ts"
+    ],
+    "documentFiles": [
+      "AGENTS.md",
+      "packages/ui/README.md"
+    ]
+  }
 }
