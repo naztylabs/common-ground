@@ -201,21 +201,35 @@
             "README.md",
             "docs/knowledge-policy.md",
             ".common-ground/START_HERE.md",
-            ".common-ground/POLICY.md"
+            ".common-ground/POLICY.md",
+            "src/discovery.ts",
+            "docs/discovery.md"
           ],
-          "revision": 4,
+          "revision": 5,
           "facts": [
             {
               "id": "bounded-discovery",
-              "statement": "Initialization discovery walks at most 1,500 filesystem entries.",
+              "statement": "Discovery scans at most 1,500 filesystem entries and accepts at most 2 MiB of manifest content; framework signals produce developer-reviewed candidates without inferring facts.",
               "evidence": [
                 {
-                  "path": "src/init.ts",
-                  "quote": "const scan = await store.walk([], 1500);"
+                  "path": "src/discovery.ts",
+                  "quote": "const ENTRY_LIMIT=1500, FILE_BYTES=256*1024, TOTAL_BYTES=2*1024*1024, PROJECT_LIMIT=50;"
+                },
+                {
+                  "path": "src/discovery.ts",
+                  "quote": "if(inspectedEntries===ENTRY_LIMIT){truncated=true;break;}inspectedEntries++;"
+                },
+                {
+                  "path": "src/discovery.ts",
+                  "quote": "schemaVersion:2,requiresDeveloperApproval:true"
+                },
+                {
+                  "path": "src/discovery.ts",
+                  "quote": "No facts or dependencies have been inferred."
                 }
               ],
               "sourceScope": [
-                "src/init.ts"
+                "src/discovery.ts"
               ],
               "dependsOn": []
             },
@@ -291,8 +305,9 @@
             }
           ],
           "sources": {
-            "src/guidance.ts": "f4bcf70e809e98001cadb8e788f2d16cbe02c5c715e305a70c91bf0922a928e1",
-            "src/init.ts": "9187fa93b9b566a5ac603998dab5bcb72c111418f7a3187bb21c5805d13f2751"
+            "src/discovery.ts": "2f6bfedc2a1cdb8a6e37558582fe9e32d631f30f48ff909596ea64d2a7144320",
+            "src/guidance.ts": "68f537afbcd68803fa1abd169400da3334aeb9711fac3e6c8545ef8c93f72526",
+            "src/init.ts": "27238353745ceaac00b9831068245e87b2505804304cf7eef3a52325c060ecc4"
           },
           "dependencyFingerprints": {}
         }
@@ -316,11 +331,11 @@
             "src/paging.ts",
             "docs/quiet-workflow.md"
           ],
-          "revision": 4,
+          "revision": 5,
           "facts": [
             {
               "id": "stdio-transport",
-              "statement": "The stdio MCP service defaults to the compact task workflow; --profile full retains the original individual tools.",
+              "statement": "The framework's local stdio MCP server defaults to the compact task workflow; --profile full retains the original individual tools.",
               "evidence": [
                 {
                   "path": "src/server.ts",
@@ -428,7 +443,7 @@
             }
           ],
           "sources": {
-            "src/cli.ts": "ffbda13705c28f7600bb33f39af47d286b17f2c86ff6fe8d99dfeab58f1a09c9",
+            "src/cli.ts": "cc240d3cb61a43a1e92cdcf69109bf9f08ccee7cb2cfa6c0938299139fabe79b",
             "src/navigation.ts": "26ad7be39aa505b3f571784a791c89280f5d27f2675c7b3936cf0e0f84cd74fb",
             "src/server.ts": "6f086de6f86f906b451f5b81cfdd3c69166992aff79ae03bb637961e0c400513"
           },

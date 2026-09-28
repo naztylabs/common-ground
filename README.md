@@ -1,10 +1,24 @@
 # Common Ground
 
-Shared codebase knowledge for every agent.
+An open-source framework for shared codebase knowledge.
 
-Common Ground is an offline, Git-backed knowledge service for coding agents. It gives agents the shared understanding developers build through everyday conversations, so another developer's agent can reuse verified knowledge instead of repeating the investigation.
+Common Ground is an open-source framework developers can add to their projects to share verified knowledge across coding agents. It runs locally and keeps knowledge in Git, giving agents the shared understanding developers build through everyday conversations so another developer's agent can reuse it instead of repeating the investigation.
 
 **Agents discover, write, and maintain the knowledge. Developers approve responsibility boundaries and resolve uncertainty; they should not have to author JSON.** Git distributes the records alongside the code.
+
+Common Ground provides the knowledge structure, maintenance rules, CLI, and local MCP server as a foundation that developers can adapt and extend for their own repositories and workflows.
+
+## Adopt and extend
+
+Install the package and run `cground init` in an existing repository to add the starting structure and agent guidance. Work with your agent to establish the repository's responsibilities and verified facts, then evolve that setup as the codebase grows.
+
+- **Shape it around your repository:** define pillars and chapters for your subsystems, conventions, and build workflows.
+- **Add your team's guidance:** keep project-specific instructions outside Common Ground's marked sections; initialization preserves that content.
+- **Extend the framework:** build integrations around the CLI, MCP tools, and documented JSON schemas, or modify the TypeScript implementation for your needs. See [the architecture](docs/architecture.md) and [the record contract](docs/pillar-contract.md).
+
+Repository customization and CLI/MCP integrations are supported today. Deeper extensions—custom discovery rules, validators, record fields, storage backends, or tools—currently require source changes. The beta has no plugin loader, stable public SDK, lifecycle-hook API, or configurable discovery-provider interface. Team guidance supplements the workflow; it cannot override validation enforced by the code.
+
+Common Ground is MIT licensed. The project focuses on giving developers a useful foundation they can adopt, maintain, and build upon.
 
 ## Pillars → Chapters → Facts
 
@@ -81,8 +95,14 @@ Initialization preserves existing knowledge and instructions. It writes a heuris
 
 ```sh
 cground approve .common-ground/local/bootstrap.json --approve
-cground seed java-application/overview /path/to/agent-prepared-facts.json --approve
+cground list
+cground chapters PILLAR_ID
+cground seed PILLAR_ID/CHAPTER_ID /path/to/agent-prepared-facts.json --approve
 ```
+
+Use the IDs from the approved proposal. Discovery recognizes common web and mobile frameworks (Angular, React, Next.js, Vue/Nuxt, Svelte/SvelteKit, Astro, React Native/Expo, Flutter), native Swift/Xcode projects, Java/Kotlin/Maven/Gradle/Android, Node backends, Python, Go, Rust, .NET, Ruby, and PHP. It also recognizes common workspace and CI layouts. See [the discovery catalog and limits](docs/discovery.md).
+
+Frameworks are evidence for navigation, not automatic pillar boundaries. Signals are grouped by project root and proposed responsibility; React Native's native platform folders stay with the mobile application. The agent must review the proposed boundaries and sampled paths before approval. Scanning is bounded and reports skipped manifests and truncated results; it cannot prove that every subsystem was found. `cground scan` previews candidates without changing knowledge. Re-running `init` on an approved repository preserves its pillars and skips discovery.
 
 Bootstrap and additional-fact admission currently use CLI operations instead of MCP approval tools. An agent with shell access executes them following developer approval; the flag never substitutes for approval. To add approved chapters to an existing pillar, use `cground approve-chapters PILLAR PLAN.json --approve`. For task-time additions, use the deferred proposal/finish/accept workflow above. The older `cground admit PILLAR/CHAPTER FACTS.json --approve` remains a developer-directed operator command; its source-reading and dependent review requirements still apply.
 
