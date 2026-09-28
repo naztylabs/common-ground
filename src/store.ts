@@ -1,7 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { Registry, LegacyRegistry, PillarDefinition, ChapterDefinition, Chapter, Fact, Update, unique, type RegistryRecord, type ChapterRecord, type Definition, type UpdateRequest } from './model.js';
+import { Registry, LegacyRegistry, PillarDefinition, ChapterDefinition, Chapter, Fact, Update, relativePath, unique, type RegistryRecord, type ChapterRecord, type Definition, type UpdateRequest } from './model.js';
+import { reviewDocuments } from './review-files.js';
 const ignored = new Set(['.git','node_modules','.common-ground','dist','build','target','.nx','.next','coverage','.env']);
 const hash = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
 const stable = (v: unknown): string => JSON.stringify(v, (_, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a],[b]) => a.localeCompare(b))) : x);
@@ -226,7 +227,57 @@ export class Store {
   async reviewPlan(key: string, factIds?: string[]) {
     const registry=await this.read();
     if(factIds?.some(id=>!this.chapter(registry,key).facts.some(f=>f.id===id)))throw new Error('Unknown initiating fact');
-    return {chapterId:key,factIds,policy:'Trace fact dependencies and dependents; fully review the chapters containing those facts. Only invalidated facts may change.',affectedFacts:this.impact(registry,key,factIds),chapters:await Promise.all(this.related(registry,key,factIds).map(async chapterId=>{const c=this.chapter(registry,chapterId);return {chapterId,title:c.title,revision:c.revision,factCount:c.facts.length,freshness:await this.status(chapterId,registry)};}))};
+    return {chapterId:key,factIds,policy:'Trace fact dependencies and dependents; fully review the chapters containing those facts. Read source this session and use review_checklist for directory, sibling, child, and referenced documentation. Corrections and explicit maintenance require reasons; unchanged facts need no rewrite.',affectedFacts:this.impact(registry,key,factIds),chapters:await Promise.all(this.related(registry,key,factIds).map(async chapterId=>{const c=this.chapter(registry,chapterId);return {chapterId,title:c.title,revision:c.revision,factCount:c.facts.length,freshness:await this.status(chapterId,registry)};}))};
+  }
+  resolveTarget(registry: RegistryRecord, target: string) {
+    const matches: string[][] = [];
+    const pillar = registry.pillars.find(p => p.id === target);
+    if (pillar) matches.push(pillar.chapters.map(c => `${pillar.id}/${c.id}`));
+    const chapter = this.chapters(registry).find(c => c.key === target);
+    if (chapter) matches.push([chapter.key]);
+    for (const fact of this.facts(registry)) if (fact.key === target || fact.fact.id === target) matches.push([fact.chapterId]);
+    if (matches.length !== 1) throw new Error(matches.length ? 'Ambiguous tidy target; use pillar/chapter/fact or pillar/chapter.' : 'Unknown tidy target');
+    return matches[0];
+  }
+  async requestTidy(target: string) {
+    return this.lock(async () => {
+      const registry = await this.read();
+      const roots = this.resolveTarget(registry, target);
+      const chapters = [...new Set(roots.flatMap(key => this.related(registry, key)))].sort();
+      const tidyId = randomUUID();
+      await this.atomic(`local/tidy-${tidyId}.json`, {registryHash:hash(stable(registry)), roots, chapters});
+      return {tidyId, instruction:'Developer-requested cleanup only. The calling agent must read and verify source and documentation, then submit prepare_update with this tidyId. No facts have been changed.'};
+    });
+  }
+  async tidyScope(id: string, registry: RegistryRecord): Promise<string[]> {
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Invalid tidy ID');
+    await this.safe(`.common-ground/local/tidy-${id}.json`);
+    const ticket = JSON.parse(await fs.readFile(this.file(`local/tidy-${id}.json`), 'utf8'));
+    if (ticket.registryHash !== hash(stable(registry))) throw new Error('Knowledge changed; request a new tidy plan.');
+    if (!Array.isArray(ticket.chapters) || !ticket.chapters.length) throw new Error('Invalid tidy scope');
+    for (const key of ticket.chapters) this.chapter(registry, key);
+    return ticket.chapters;
+  }
+  async reviewFiles(registry: RegistryRecord, keys: string[], touchedPaths: string[], candidate = registry) {
+    for (const file of touchedPaths) relativePath.parse(file);
+    const sourceFiles = [...new Set(keys.flatMap(key => [this.chapter(registry,key), this.chapter(candidate,key)]
+      .flatMap(c => c.facts.flatMap(f => f.evidence.map(e => e.path)))))].sort();
+    const documentFiles = await reviewDocuments(this, [...sourceFiles, ...touchedPaths]);
+    return {sourceFiles, documentFiles};
+  }
+  async fileSnapshots(files: string[]) {
+    const snapshots: Record<string,string> = {};
+    for (const file of files) {
+      relativePath.parse(file);
+      if(file.split('/').some(p=>ignored.has(p)||p.startsWith('.env')))throw new Error(`Excluded review path: ${file}`);
+      try {
+        const safe = await this.safe(file);
+        const stat = await fs.stat(safe);
+        if (!stat.isFile() || stat.size > 2_000_000) throw new Error(`Review file exceeds beta limits: ${file}`);
+        snapshots[file] = hash(await fs.readFile(safe));
+      } catch (error: any) { if (error.code !== 'ENOENT') throw error; snapshots[file] = 'missing'; }
+    }
+    return snapshots;
   }
   async evaluate(input: UpdateRequest, registry: RegistryRecord) {
     const request=Update.parse(input);
@@ -235,7 +286,14 @@ export class Store {
     const candidate=structuredClone(registry);
     for(const review of request.reviews)this.chapter(candidate,review.chapterId).facts=review.facts;
     this.validateRegistry(candidate);
-    const required=[...new Set([...this.related(registry,request.chapterId,request.factIds),...this.related(candidate,request.chapterId,request.factIds)])].sort();
+    const tidyScope=request.tidyId?await this.tidyScope(request.tidyId,registry):[];
+    if(request.tidyId&&!tidyScope.includes(request.chapterId))throw new Error('Initiating chapter is outside the tidy scope');
+    if(!request.tidyId&&!request.touchedPaths.length)throw new Error('Routine updates need touched paths; developer-requested cleanup needs a tidyId.');
+    const maintenanceReviews=request.reviews.filter(r=>r.maintenance?.length);
+    const initialScope=new Set([...tidyScope,...this.related(registry,request.chapterId,request.factIds),...this.related(candidate,request.chapterId,request.factIds)]);
+    if(maintenanceReviews.some(r=>!initialScope.has(r.chapterId)))throw new Error('Maintenance is outside the affected review scope; request a separate developer-directed tidy.');
+    const roots=[...new Set(maintenanceReviews.map(r=>r.chapterId))];
+    const required=[...new Set([...tidyScope,...this.related(registry,request.chapterId,request.factIds),...this.related(candidate,request.chapterId,request.factIds),...roots.flatMap(key=>[...this.related(registry,key),...this.related(candidate,key)])])].sort();
     const affected=new Set([...this.impact(registry,request.chapterId,request.factIds),...this.impact(candidate,request.chapterId,request.factIds)]);
     if(!same(required,request.reviews.map(r=>r.chapterId).sort()))throw new Error(`Review every linked chapter: ${required.join(', ')}`);
     const snapshots:Record<string,Record<string,string>>={};
@@ -244,6 +302,7 @@ export class Store {
       const old=this.chapter(registry,review.chapterId);
       if(old.revision!==review.expectedRevision)throw new Error('Chapter revision conflict; reload.');
       unique(review.reviewedFactIds,'reviewed fact IDs');unique(review.invalidatedFactIds,'invalidated fact IDs');
+      unique((review.maintenance??[]).map(m=>m.factId),'maintenance fact IDs');
       if(!same([...review.reviewedFactIds].sort(),old.facts.map(f=>f.id).sort()))throw new Error('Every existing fact must be reviewed.');
       const next=Chapter.parse({...old,facts:review.facts});
       await this.validateFacts(next);snapshots[review.chapterId]=await this.snapshot(next);
@@ -251,13 +310,31 @@ export class Store {
     }
     for(const review of request.reviews){
       const old=this.chapter(registry,review.chapterId);
+      for(const item of review.maintenance??[]) {
+        const before=old.facts.find(f=>f.id===item.factId),after=review.facts.find(f=>f.id===item.factId);
+        if(!before||same(before,after)||!review.invalidatedFactIds.includes(item.factId))throw new Error('Maintenance must identify an existing changed fact as invalidated.');
+        if((item.action==='merge'||item.action==='remove')&&after)throw new Error('Merged or removed facts must be deleted in place.');
+        if((item.action==='correct'||item.action==='tighten')&&!after)throw new Error('Corrections must preserve the existing fact ID.');
+        if(item.action==='merge') {
+          if(!item.replacement||item.replacement===`${review.chapterId}/${item.factId}`)throw new Error('Merge requires a different surviving replacement fact.');
+          this.fact(candidate,item.replacement);
+        } else if(item.replacement)throw new Error('Only merge maintenance accepts a replacement fact.');
+      }
       if(!changed.has(review.chapterId)){if(review.invalidatedFactIds.length)throw new Error('Unchanged facts cannot be marked invalidated');continue;}
+      if(request.tidyId&&!tidyScope.includes(review.chapterId))throw new Error('Changed chapter is outside the tidy scope; request a broader tidy plan.');
       if(!review.invalidatedFactIds.length)throw new Error('Changed facts require an invalidation reason.');
       if(review.facts.some(f=>!old.facts.some(o=>o.id===f.id)))throw new Error('New facts require developer-reviewed admission.');
       for(const fact of old.facts)if(!same(fact,review.facts.find(f=>f.id===fact.id))&&!review.invalidatedFactIds.includes(fact.id))throw new Error(`Unrelated fact edit: ${fact.id}`);
       for(const id of review.invalidatedFactIds){
         const fact=old.facts.find(f=>f.id===id);
         if(!fact||same(fact,review.facts.find(f=>f.id===id)))throw new Error(`Invalid invalidated fact: ${id}`);
+        const maintenance=review.maintenance?.find(m=>m.factId===id);
+        if(maintenance) {
+          const anchored=request.touchedPaths.some(p=>required.some(key=>this.chapter(registry,key).paths.some(s=>p===s||p.startsWith(`${s}/`))));
+          if(!request.tidyId&&!anchored)throw new Error('Maintenance requires relevant touched paths or a developer-requested tidyId.');
+          continue;
+        }
+        if(request.tidyId)throw new Error('Every tidy edit requires an explicit maintenance action and reason.');
         const direct=fact.evidence.some(e=>request.touchedPaths.includes(e.path)&&old.sources[e.path]!==snapshots[review.chapterId][e.path]);
         if(!affected.has(`${review.chapterId}/${id}`))throw new Error(`Fact is outside the selected dependency review: ${id}`);
         const upstreamChanged=this.upstreamFacts(registry,`${review.chapterId}/${id}`).some(dep=>{
@@ -267,7 +344,14 @@ export class Store {
         if(!direct&&!upstreamChanged)throw new Error(`No directly touched, changed evidence or changed dependency for fact: ${id}`);
       }
     }
-    return {request,required,snapshots,changed:[...changed].sort()};
+    const files=await this.reviewFiles(registry,required,request.touchedPaths,candidate);
+    unique(request.verification.sourceFiles,'verified source files');unique(request.verification.documentFiles,'verified documentation files');
+    for(const kind of ['sourceFiles','documentFiles'] as const)for(const file of files[kind]) {
+      if(!request.verification[kind].includes(file))throw new Error(`Session verification required for ${kind}: ${file}. Read the file (or verify its deletion) before attesting; use review_checklist.`);
+    }
+    // A declaration is not proof that an external agent read a file; snapshots detect subsequent drift.
+    const reviewSnapshots=await this.fileSnapshots([...new Set([...request.verification.sourceFiles,...request.verification.documentFiles])]);
+    return {request,required,snapshots,reviewSnapshots,changed:[...changed].sort()};
   }
   async markReviewed(registry: RegistryRecord, keys: string[], snapshots: Record<string,Record<string,string>>) {
     const context=Object.fromEntries(keys.map(key=>[key,{chapterHash:hash(stable(this.chapter(registry,key))),snapshot:snapshots[key]}]));
@@ -276,7 +360,7 @@ export class Store {
   async prepare(input: UpdateRequest) {
     const registry=await this.read();const result=await this.evaluate(input,registry);
     if(!result.changed.length){await this.markReviewed(registry,result.required,result.snapshots);return {noop:true as const};}
-    const id=randomUUID();await this.atomic(`local/${id}.json`,{request:result.request,registryHash:hash(stable(registry)),snapshots:result.snapshots});
+    const id=randomUUID();await this.atomic(`local/${id}.json`,{request:result.request,registryHash:hash(stable(registry)),snapshots:result.snapshots,reviewSnapshots:result.reviewSnapshots});
     return {noop:false as const,proposalId:id,changedChapters:result.changed,reviewedChapters:result.required};
   }
   async commit(id: string) {
@@ -287,6 +371,7 @@ export class Store {
       if(hash(stable(registry))!==proposal.registryHash)throw new Error('Knowledge changed; prepare a new proposal.');
       const evaluated=await this.evaluate(proposal.request,registry);
       if(!same(evaluated.snapshots,proposal.snapshots))throw new Error('Source changed during review; prepare a new proposal.');
+      if(!same(evaluated.reviewSnapshots,proposal.reviewSnapshots))throw new Error('Reviewed source or documentation changed; prepare a new proposal.');
       for(const key of evaluated.changed){const c=this.chapter(registry,key);c.facts=evaluated.request.reviews.find(r=>r.chapterId===key)!.facts;c.revision++;c.sources=evaluated.snapshots[key];}
       for(const key of evaluated.changed)this.chapter(registry,key).dependencyFingerprints=this.dependencyFingerprints(registry,key);
       await this.persist(registry);await this.markReviewed(registry,evaluated.required,evaluated.snapshots);await fs.rm(this.file(`local/${id}.json`));

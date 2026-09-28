@@ -1,17 +1,6 @@
-# Common Ground development
+# Knowledge policy
 
-Common Ground is a local, Git-backed knowledge service. Keep shared knowledge terse and evidence-backed. No telemetry or cloud dependency.
-
-Use TypeScript with strict checking. Build with `npm run build`; run `npm test` before finishing behavior changes. Preserve the stdio MCP channel: diagnostics go to stderr.
-
-Core invariants: unrelated work produces no knowledge writes; unchanged facts produce no writes; every existing fact is reviewed before a revision; new pillars require developer approval and an uncovered standalone responsibility; source or revision conflicts reject publication. Approval flags are developer-directed, not autonomous authorization.
-
-Use synthetic fixtures only. Do not copy employer code, internal documentation, identifiers, or schemas into this project.
-
-<!-- common-ground:start -->
-## Common Ground
-
-Start at [.common-ground/START_HERE.md](.common-ground/START_HERE.md), or call start_here with a repository-relative path or a failure signal. Common Ground is a cache of the codebase, never authority over source or developer instructions.
+Start at [.common-ground/START_HERE.md](../.common-ground/START_HERE.md), or call start_here with a repository-relative path or a failure signal. Common Ground is a cache of the codebase, never authority over source or developer instructions.
 
 ### Reading
 
@@ -43,4 +32,3 @@ Start at [.common-ground/START_HERE.md](.common-ground/START_HERE.md), or call s
 
 Tools: start_here, ownership_map, pillar_graph, tidy_plan, review_checklist, list_pillars, list_chapters, read_chapter, read_fact, search_knowledge, review_plan, prepare_update, commit_update.
 CLI: cground start "build failed"; cground owners --path PATH; cground graph PILLAR; cground tidy TARGET; cground review-checklist CHAPTER --touched PATH.
-<!-- common-ground:end -->

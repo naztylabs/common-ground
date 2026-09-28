@@ -15,9 +15,12 @@
           "paths": [
             "src/model.ts",
             "src/store.ts",
-            "schemas"
+            "schemas",
+            "src/review-files.ts",
+            "docs/architecture.md",
+            "docs/pillar-contract.md"
           ],
-          "revision": 2,
+          "revision": 4,
           "facts": [
             {
               "id": "registry-schema",
@@ -88,11 +91,70 @@
                 "src/store.ts"
               ],
               "dependsOn": []
+            },
+            {
+              "id": "fact-dependencies",
+              "statement": "Facts reference other facts by pillar/chapter/fact keys; review impact follows dependencies and reverse dependents.",
+              "evidence": [
+                {
+                  "path": "src/model.ts",
+                  "quote": "dependsOn:z.array(factKey).default([])"
+                },
+                {
+                  "path": "src/store.ts",
+                  "quote": "for(const dependent of dependents.get(current)??[])visited.add(dependent);"
+                }
+              ],
+              "sourceScope": [
+                "src/model.ts",
+                "src/store.ts"
+              ],
+              "dependsOn": []
+            },
+            {
+              "id": "session-review-coverage",
+              "statement": "Review preparation requires source and documentation verification declarations, including for no-op reviews.",
+              "evidence": [
+                {
+                  "path": "src/store.ts",
+                  "quote": "for(const kind of ['sourceFiles','documentFiles'] as const)for(const file of files[kind])"
+                },
+                {
+                  "path": "src/store.ts",
+                  "quote": "const registry=await this.read();const result=await this.evaluate(input,registry);"
+                }
+              ],
+              "sourceScope": [
+                "src/store.ts"
+              ],
+              "dependsOn": []
+            },
+            {
+              "id": "maintenance-actions",
+              "statement": "Explicit maintenance supports source-verified corrections without source drift; corrections retain fact IDs and merges require a surviving replacement.",
+              "evidence": [
+                {
+                  "path": "src/store.ts",
+                  "quote": "if((item.action==='correct'||item.action==='tighten')&&!after)throw new Error('Corrections must preserve the existing fact ID.');"
+                },
+                {
+                  "path": "src/store.ts",
+                  "quote": "this.fact(candidate,item.replacement);"
+                },
+                {
+                  "path": "src/store.ts",
+                  "quote": "if(!request.tidyId&&!anchored)throw new Error('Maintenance requires relevant touched paths or a developer-requested tidyId.');"
+                }
+              ],
+              "sourceScope": [
+                "src/store.ts"
+              ],
+              "dependsOn": []
             }
           ],
           "sources": {
-            "src/model.ts": "da185107f2ccffb568fa7374405d2c5bda7c1af00da816edeb6b4a89c0784e02",
-            "src/store.ts": "e1709206dce368a3f02693107e6ab66765c1185d6c63c617e25ca59ebe06b731"
+            "src/model.ts": "97341e2dabd5f8d9bfe188fdd713e0ea09d2ab9bbfae1318392b5319de0915d7",
+            "src/store.ts": "389b88c8504b31429a7fd7d52c1949557f72c46ece519716581519e61417658a"
           },
           "dependencyFingerprints": {}
         }
@@ -110,9 +172,14 @@
           "scope": "Bounded pillar discovery and managed repository instruction and MCP configuration setup.",
           "excludes": "Knowledge revision transactions and agent tool execution.",
           "paths": [
-            "src/init.ts"
+            "src/init.ts",
+            "src/guidance.ts",
+            "AGENTS.md",
+            "README.md",
+            "docs/knowledge-policy.md",
+            ".common-ground/START_HERE.md"
           ],
-          "revision": 1,
+          "revision": 3,
           "facts": [
             {
               "id": "bounded-discovery",
@@ -169,10 +236,30 @@
                 "src/init.ts"
               ],
               "dependsOn": []
+            },
+            {
+              "id": "start-here-guide",
+              "statement": "Initialization preserves custom content while managing a tracked Start Here guide that routes agents from failures to ownership, chapters, and source verification.",
+              "evidence": [
+                {
+                  "path": "src/init.ts",
+                  "quote": "await managed(store,'.common-ground/START_HERE.md',startGuide);"
+                },
+                {
+                  "path": "src/guidance.ts",
+                  "quote": "## My build failed. Where do I go?"
+                }
+              ],
+              "sourceScope": [
+                "src/init.ts",
+                "src/guidance.ts"
+              ],
+              "dependsOn": []
             }
           ],
           "sources": {
-            "src/init.ts": "573bc8e00d88e647f84c10179931447a7cbc9d045363e49fee57239944addaf5"
+            "src/guidance.ts": "9f8be5a6e24a8bf9478c69b1fd98594ae8441683973fac8135eb723a800c5752",
+            "src/init.ts": "ea621426aa6cfef2d8cc36b721c56a0c929aa5e44d6646562e6e86aac4b03af0"
           },
           "dependencyFingerprints": {}
         }
@@ -191,9 +278,11 @@
           "excludes": "Persistence implementation and repository discovery.",
           "paths": [
             "src/cli.ts",
-            "src/server.ts"
+            "src/server.ts",
+            "src/navigation.ts",
+            "src/paging.ts"
           ],
-          "revision": 1,
+          "revision": 3,
           "facts": [
             {
               "id": "stdio-transport",
@@ -250,13 +339,58 @@
                 "src/server.ts"
               ],
               "dependsOn": []
+            },
+            {
+              "id": "ownership-routing",
+              "statement": "Path routing maps registered chapter paths and descendants to owning pillars; signal tokens produce keyword hints with fact references and freshness.",
+              "evidence": [
+                {
+                  "path": "src/navigation.ts",
+                  "quote": "const contains = (scope: string, file: string) => scope === file || file.startsWith(`${scope}/`);"
+                },
+                {
+                  "path": "src/navigation.ts",
+                  "quote": "paths, match: paths.length && options.path ? 'registered-path' : terms.length ? 'keyword-hint' : 'index',"
+                },
+                {
+                  "path": "src/navigation.ts",
+                  "quote": "freshness: await store.status(item.chapterId, registry)"
+                }
+              ],
+              "sourceScope": [
+                "src/navigation.ts"
+              ],
+              "dependsOn": []
+            },
+            {
+              "id": "pillar-dependency-view",
+              "statement": "The pillar graph derives dependent-to-dependency edges from cross-pillar fact references, without inferring missing relationships.",
+              "evidence": [
+                {
+                  "path": "src/navigation.ts",
+                  "quote": "for (const entry of store.facts(registry)) for (const dependency of entry.fact.dependsOn)"
+                },
+                {
+                  "path": "src/navigation.ts",
+                  "quote": "direction: 'dependent pillar -> dependency pillar'"
+                }
+              ],
+              "sourceScope": [
+                "src/navigation.ts"
+              ],
+              "dependsOn": [
+                "knowledge-engine/overview/fact-dependencies"
+              ]
             }
           ],
           "sources": {
-            "src/cli.ts": "1ecec56661b558ed03654141d10c144f6e35d8362e0cbc594500d93172952a8c",
-            "src/server.ts": "56b4c2041ee3ec915d51fd907de8ba171af5ae145eeb25368c4e43d3799e9314"
+            "src/cli.ts": "dae251cf3bfee6593019fad53df6bad8252be79995b825369d39e46f1d49e891",
+            "src/navigation.ts": "26ad7be39aa505b3f571784a791c89280f5d27f2675c7b3936cf0e0f84cd74fb",
+            "src/server.ts": "e5bfca5342068e74bdd9c2f838fa6e6f7d48aa3cb0bdc6e96d77940ade4c3f88"
           },
-          "dependencyFingerprints": {}
+          "dependencyFingerprints": {
+            "knowledge-engine/overview/fact-dependencies": "11da378906782753f58385fc3d275d1f8c3b1493b28ebc1d11649ae1aa13d8f5"
+          }
         }
       ]
     },
@@ -276,9 +410,13 @@
             "scripts",
             "test",
             "examples",
-            "tsconfig.json"
+            "tsconfig.json",
+            "src/version.ts",
+            ".github/workflows/release.yml",
+            "docs/releases.md",
+            "docs/demo.md"
           ],
-          "revision": 1,
+          "revision": 2,
           "facts": [
             {
               "id": "cli-entry",

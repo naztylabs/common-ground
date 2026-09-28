@@ -21,8 +21,7 @@
           "items": {
             "type": "string",
             "minLength": 1
-          },
-          "minItems": 1
+          }
         },
         "reviews": {
           "type": "array",
@@ -113,6 +112,40 @@
                 "type": "string",
                 "minLength": 12,
                 "maxLength": 1000
+              },
+              "maintenance": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "factId": {
+                      "$ref": "#/definitions/update/properties/factIds/items"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "correct",
+                        "merge",
+                        "remove",
+                        "tighten"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 12,
+                      "maxLength": 1000
+                    },
+                    "replacement": {
+                      "$ref": "#/definitions/update/properties/reviews/items/properties/facts/items/properties/dependsOn/items"
+                    }
+                  },
+                  "required": [
+                    "factId",
+                    "action",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [
@@ -126,12 +159,39 @@
             "additionalProperties": false
           },
           "minItems": 1
+        },
+        "verification": {
+          "type": "object",
+          "properties": {
+            "sourceFiles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/update/properties/touchedPaths/items"
+              }
+            },
+            "documentFiles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/update/properties/touchedPaths/items"
+              }
+            }
+          },
+          "required": [
+            "sourceFiles",
+            "documentFiles"
+          ],
+          "additionalProperties": false
+        },
+        "tidyId": {
+          "type": "string",
+          "format": "uuid"
         }
       },
       "required": [
         "chapterId",
         "touchedPaths",
-        "reviews"
+        "reviews",
+        "verification"
       ],
       "additionalProperties": false
     }

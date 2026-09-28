@@ -19,7 +19,7 @@ async function fixture(t,facts=[fact()]) {
 }
 const get=async(store,key=KEY)=>store.chapter(await store.read(),key);
 const review=(overrides={})=>({chapterId:KEY,expectedRevision:1,invalidatedFactIds:['format'],reviewedFactIds:['format'],facts:[fact('v2')],reason:'The authorized change replaces version v1 with v2.',...overrides});
-const update=(overrides={})=>({chapterId:KEY,touchedPaths:['app/schema.txt'],reviews:[review()],...overrides});
+const update=(overrides={})=>({chapterId:KEY,touchedPaths:['app/schema.txt'],verification:{sourceFiles:['app/schema.txt'],documentFiles:[]},reviews:[review()],...overrides});
 const noop=()=>update({reviews:[review({facts:[fact()],invalidatedFactIds:[]})]});
 
 test('CLI reads the installed package version after a version bump',async t=>{
@@ -71,7 +71,7 @@ async function linked(t){
  for(const {key,chapter} of store.chapters(reg)){chapter.sources=await store.snapshot(chapter);chapter.dependencyFingerprints=store.dependencyFingerprints(reg,key);}
  await store.persist(reg);return {root,store};
 }
-async function linkedRequest(store){const reg=await store.read();return {chapterId:'base/overview',touchedPaths:['base/schema.txt'],reviews:store.related(reg,'base/overview').map(key=>{const c=store.chapter(reg,key);return {chapterId:key,expectedRevision:c.revision,reviewedFactIds:c.facts.map(f=>f.id),invalidatedFactIds:key==='base/overview'?['format']:[],facts:key==='base/overview'?[fact('v2','format','base/schema.txt')]:c.facts,reason:'Reviewed all facts against the changed base contract.'};})};}
+async function linkedRequest(store){const reg=await store.read();return {chapterId:'base/overview',touchedPaths:['base/schema.txt'],verification:{sourceFiles:['app/schema.txt','base/schema.txt','consumer/schema.txt'],documentFiles:[]},reviews:store.related(reg,'base/overview').map(key=>{const c=store.chapter(reg,key);return {chapterId:key,expectedRevision:c.revision,reviewedFactIds:c.facts.map(f=>f.id),invalidatedFactIds:key==='base/overview'?['format']:[],facts:key==='base/overview'?[fact('v2','format','base/schema.txt')]:c.facts,reason:'Reviewed all facts against the changed base contract.'};})};}
 test('review plan includes upstream and transitive dependent chapters, excluding unrelated ones',async t=>{const {store}=await linked(t);const plan=await store.reviewPlan(KEY);assert.deepEqual(plan.chapters.map(c=>c.chapterId),['base/overview','consumer/overview',KEY]);});
 test('dependency review omission is rejected',async t=>{const {root,store}=await linked(t);await fs.writeFile(path.join(root,'base/schema.txt'),'format=v2');const r=await linkedRequest(store);r.reviews=r.reviews.filter(r=>r.chapterId==='base/overview');await assert.rejects(()=>store.prepare(r),/Review every linked chapter/);});
 test('dependency transaction rewrites only invalidated chapters',async t=>{const {root,store}=await linked(t);const before=await store.read();await fs.writeFile(path.join(root,'base/schema.txt'),'format=v2');const p=await store.prepare(await linkedRequest(store));await store.commit(p.proposalId);const after=await store.read();assert.equal(store.chapter(after,'base/overview').revision,2);for(const key of [KEY,'consumer/overview','isolated/overview'])assert.deepEqual(store.chapter(after,key),store.chapter(before,key));assert.equal((await store.status(KEY)).locallyReviewed,true);});
