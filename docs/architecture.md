@@ -1,9 +1,14 @@
 # Architecture and beta boundaries
 
+Common Ground is an open-source framework combining a repository knowledge model, maintenance rules, and a local implementation developers can adapt and extend. The CLI and stdio MCP server expose that framework to coding agents. Integrations can use those interfaces and the published JSON schemas; implementation changes live in the TypeScript modules below.
+
+The supported customization surface is repository definitions and supplemental guidance, plus CLI/MCP integrations. Custom discovery, validators, record fields, storage backends, and tools require source changes. There is no plugin loader, stable public SDK, lifecycle-hook API, or configurable discovery-provider interface in this beta. Internal module exports are implementation details rather than a promised extension contract.
+
 - `src/model.ts`: strict schema v2 pillar, chapter, fact, and multi-chapter review records; schema v1 migration input.
 - `src/store.ts`: safe paths, evidence and ownership checks, dependency traversal, freshness, migration, and atomic review transactions.
 - `src/workflow.ts`: task-local context reuse, compact patches, deferred fact proposals, and reviewed batch admission.
-- `src/init.ts`: bounded discovery and managed repository instructions/MCP configuration.
+- `src/init.ts`: managed repository instructions/MCP configuration and bootstrap orchestration.
+- `src/discovery.ts`: bounded static manifest/source-path discovery, technology signals and proposed project ownership.
 - `src/server.ts`: five default stdio MCP tools (thirteen in the compatibility profile), paginated navigation, evidence retrieval, and Unicode-aware keyword search.
 - `src/navigation.ts`: derived ownership routing, pillar graph, Start Here responses, and read-only tidy plans.
 - `src/review-files.ts`: bounded discovery of local, sibling, child, and referenced review documentation.
@@ -19,7 +24,7 @@ The current storage engine still parses the full registry internally, and source
 
 Dependency reviews start from selected fact IDs (or all facts in a chapter), traverse fact dependencies and reverse dependents transitively, and group the result into chapter reviews. Every linked chapter must be reviewed, but only changed facts and chapters are rewritten. Explicit maintenance can correct an existing false claim, merge duplicates, remove superseded content, or tighten narrative without requiring source drift. Routine maintenance is confined to affected chapters; developer-requested tidy receipts authorize a bounded cleanup scope. A dense graph can still produce expensive reviews. Cross-pillar relationships are supported; missing undeclared dependencies cannot be inferred reliably. Shared chapter membership alone does not propagate dependency impact.
 
-Discovery examines at most 1,500 filesystem entries and proposes up to 30 path hints per category. It recognizes illustrative Azure/GitHub pipeline, Nx/npm, UI, and Java patterns and starts each candidate with an overview chapter. Developers approve an agent-refined map; discovery does not prove exhaustive coverage. Scope validation is limited to 10,000 entries and 2 MB per file. These filesystem limits remain separate from uncapped fact storage.
+Discovery examines at most 1,500 filesystem entries breadth-first, reads at most 256 KiB per manifest and 2 MiB of accepted manifest content, and returns up to 50 project candidates with 30 exact-file path hints each. It recognizes common web/mobile/native/backend frameworks, workspace markers and CI layouts. Signals are grouped by project root and broad responsibility; framework labels never become facts automatically. Native subtrees of React Native/Expo/Flutter projects are grouped with the parent. Ownership hints use distinct files to avoid overlapping proposed chapters; an agent must refine sampled hints into meaningful scopes before approval. All sampling and malformed/skipped manifests are reported. Developers approve an agent-refined map; discovery does not prove exhaustive coverage. See [the discovery catalog](discovery.md). Fact scope validation remains separately limited to 10,000 entries and 2 MB per file, independent of uncapped fact storage.
 
 Semantic entailment, approval UI, automatic command capture, remote sync, scope migration, and native Windows testing remain out of scope. `doctor` currently checks expected file presence and registry validity; it is not a complete MCP-host diagnostic.
 

@@ -60,7 +60,7 @@ CLI: cground start "build failed"; cground owners --path PATH; cground graph PIL
 
 export const startGuide = `# Start Here — Common Ground
 
-Code is the source of truth. Common Ground is a cache of verified repository patterns. Follow [AGENTS.md](../AGENTS.md); read [POLICY.md](POLICY.md) before edits.
+Common Ground is an open-source framework for shared repository knowledge. Its notes cache verified repository patterns; code is the source of truth. Follow [AGENTS.md](../AGENTS.md); read [POLICY.md](POLICY.md) before edits.
 
 ## My build failed. Where do I go?
 

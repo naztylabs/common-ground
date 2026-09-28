@@ -1,6 +1,6 @@
 # Common Ground development
 
-Common Ground is a local, Git-backed knowledge service. Keep shared knowledge terse and evidence-backed. No telemetry or cloud dependency.
+Common Ground is an open-source framework for shared, Git-backed repository knowledge. Describe the project as a framework developers can adopt and extend; the CLI and local MCP server are its interfaces. Keep shared knowledge terse and evidence-backed. No telemetry or cloud dependency.
 
 Use TypeScript with strict checking. Build with `npm run build`; run `npm test` before finishing behavior changes. Preserve the stdio MCP channel: diagnostics go to stderr.
 
