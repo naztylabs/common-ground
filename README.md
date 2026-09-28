@@ -50,10 +50,10 @@ Exact quotes, review declarations, and hashes do not prove natural-language trut
 
 Requires Node.js 22+ and npm; source development targets Node 24 through `.nvmrc`. Distribution uses GitHub Releases; this package has not been published to npmjs.com.
 
-Once a version is released, download its `common-ground-knowledge-VERSION.tgz` asset from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install the downloaded file. For example, for `0.2.0-beta.1`:
+Once a version is released, download its `common-ground-knowledge-VERSION.tgz` asset from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install the downloaded file. For example, for `0.2.0-beta.2`:
 
 ```sh
-npm install -g ./common-ground-knowledge-0.2.0-beta.1.tgz
+npm install -g ./common-ground-knowledge-0.2.0-beta.2.tgz
 cground --version
 ```
 
@@ -65,7 +65,7 @@ To build an archive from a clone:
 nvm use                 # with nvm; run nvm install first if needed
 npm ci
 npm run release:pack
-npm install -g ./release/common-ground-knowledge-0.2.0-beta.1.tgz
+npm install -g ./release/common-ground-knowledge-0.2.0-beta.2.tgz
 cground --version
 ```
 
@@ -78,8 +78,8 @@ No model API key, telemetry, cloud service, or vector database is required. The 
 After committing the release workflow and changes, push a tag that matches `package.json`. For the current version:
 
 ```sh
-git tag -a v0.2.0-beta.1 -m "Common Ground 0.2.0-beta.1"
-git push origin v0.2.0-beta.1
+git tag -a v0.2.0-beta.2 -m "Common Ground 0.2.0-beta.2"
+git push origin v0.2.0-beta.2
 ```
 
 The GitHub Actions workflow validates the tag, runs the same packaging checks, tests an isolated archive installation, and creates a release with both assets. Beta versions become prereleases. It uses GitHub's built-in token and needs no npm account or npm publishing token. See [release setup, versioning, and troubleshooting](docs/releases.md).
@@ -90,6 +90,8 @@ The GitHub Actions workflow validates the tag, runs the same packaging checks, t
 cd /path/to/repository
 cground init
 ```
+
+Initialization is the first of two setup stages: `knowledge.json` is created only after the developer approves the responsibility map. Until then, task startup returns `bootstrap-required` with next steps and no task ID; agents continue the main task from source.
 
 Initialization preserves existing knowledge and instructions. It writes a heuristic proposal to `.common-ground/local/bootstrap.json`; it does not run an LLM or invent facts. Your coding agent refines the map and presents it in plain language. After explicit approval, the agent can run:
 

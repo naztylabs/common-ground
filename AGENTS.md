@@ -13,9 +13,9 @@ Use synthetic fixtures only. Do not copy employer code, internal documentation, 
 
 Code is the source of truth; these notes only help navigation. Open relevant source this session before relying on a fact. Derive branch/submodule and other temporary state live. Read directory READMEs even when no fact changes.
 
-Keep the developer task primary. For repository work, use task_context start once, read_knowledge for relevant chapters (evidence:true batches facts), then assess actual touched paths. Reuse unchanged responses only within this task; refresh:true after context loss.
+Keep the developer task primary. Use task_context start once. Without a taskId, follow its setup guidance and START_HERE.md; continue from source. Otherwise read_knowledge for relevant chapters (evidence:true), then assess touched paths. Reuse responses only within this task; refresh:true after context loss.
 
 Quietly correct verified existing facts in affected scope. Before editing, read [.common-ground/POLICY.md](.common-ground/POLICY.md), the whole required chapters, source and related documentation. Default to no write. Queue new facts with propose_facts; finish the task before presenting the approval batch. New facts, chapters, pillars and ownership expansion need developer direction. Library-local detail belongs in its README; record durable patterns, not inventories or debugging history.
 
-Call task_context finish at completion. Briefly report actual corrections in the Git working tree and pending additions/questions; no change means no Common Ground report. Ask immediately only if uncertainty blocks the main task; never guess. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
+Call task_context finish at completion only with a taskId. Briefly report actual corrections in the Git working tree and pending additions/questions; no change means no Common Ground report. Ask immediately only if uncertainty blocks the main task; never guess. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
 <!-- common-ground:end -->

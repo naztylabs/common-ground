@@ -6,7 +6,7 @@ import { type Definition, relativePath } from './model.js';
 import type { Store } from './store.js';
 
 const ENTRY_LIMIT=1500, FILE_BYTES=256*1024, TOTAL_BYTES=2*1024*1024, PROJECT_LIMIT=50;
-const excluded=new Set(['.git','node_modules','.common-ground','dist','build','target','.nx','.next','.nuxt','.svelte-kit','.angular','.turbo','.yarn','.pnpm-store','.output','coverage',
+const excluded=new Set(['.git','node_modules','.common-ground','dist','build','target','.nx','.vite','.next','.nuxt','.svelte-kit','.angular','.turbo','.yarn','.pnpm-store','.output','coverage',
   'vendor','.venv','venv','__pycache__','Pods','Carthage','.build','DerivedData','.gradle','.dart_tool','.pub-cache','bin','obj']);
 const inside=(file:string,root:string)=>root==='.'||file===root||file.startsWith(`${root}/`);
 const object=(value:unknown):value is Record<string,any>=>!!value&&typeof value==='object'&&!Array.isArray(value);

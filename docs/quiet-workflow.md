@@ -2,6 +2,8 @@
 
 The developer asks for an ordinary coding task. Their agent uses Common Ground as needed, corrects verified existing facts within the affected scope, and mentions meaningful knowledge changes once at completion. There is no autonomous model, watcher, or command capture inside Common Ground. An MCP host still controls its permission prompts.
 
+Before bootstrap approval, `task_context start` (or `cground task start`) returns `state: "bootstrap-required"`, the proposal path and setup guidance, with no `taskId` and no local task writes. Continue from source, review the map with the developer, and run `cground approve .common-ground/local/bootstrap.json --approve` only after approval. Start again afterward. Do not assess, propose facts or finish without a task ID. If neither registry nor proposal exists, the state is `not-initialized` and the next step is `cground init`. Invalid registries remain errors.
+
 ## A normal task
 
 1. Call `task_context` with `action: "start"` and known `paths` or a short `signal`. Keep the returned `taskId` for this task. Do not create a task for every chat message.

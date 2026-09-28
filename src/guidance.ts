@@ -1,12 +1,14 @@
+export const bootstrapNext = 'Review .common-ground/local/bootstrap.json against current source and READMEs; remove generated/cache candidates and refine pillars, chapters and paths. Present the boundaries in plain language for developer approval. Only after approval, run cground approve .common-ground/local/bootstrap.json --approve to create knowledge.json, then seed verified facts with developer direction. Continue the main task from source meanwhile; no task was started, so do not assess, propose facts or finish until start returns a taskId.';
+
 export const rules = `## Common Ground
 
 Code is the source of truth; these notes only help navigation. Open relevant source this session before relying on a fact. Derive branch/submodule and other temporary state live. Read directory READMEs even when no fact changes.
 
-Keep the developer task primary. For repository work, use task_context start once, read_knowledge for relevant chapters (evidence:true batches facts), then assess actual touched paths. Reuse unchanged responses only within this task; refresh:true after context loss.
+Keep the developer task primary. Use task_context start once. Without a taskId, follow its setup guidance and START_HERE.md; continue from source. Otherwise read_knowledge for relevant chapters (evidence:true), then assess touched paths. Reuse responses only within this task; refresh:true after context loss.
 
 Quietly correct verified existing facts in affected scope. Before editing, read [.common-ground/POLICY.md](.common-ground/POLICY.md), the whole required chapters, source and related documentation. Default to no write. Queue new facts with propose_facts; finish the task before presenting the approval batch. New facts, chapters, pillars and ownership expansion need developer direction. Library-local detail belongs in its README; record durable patterns, not inventories or debugging history.
 
-Call task_context finish at completion. Briefly report actual corrections in the Git working tree and pending additions/questions; no change means no Common Ground report. Ask immediately only if uncertainty blocks the main task; never guess. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
+Call task_context finish at completion only with a taskId. Briefly report actual corrections in the Git working tree and pending additions/questions; no change means no Common Ground report. Ask immediately only if uncertainty blocks the main task; never guess. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
 `;
 
 export const policy = `## Common Ground
@@ -61,6 +63,16 @@ CLI: cground start "build failed"; cground owners --path PATH; cground graph PIL
 export const startGuide = `# Start Here — Common Ground
 
 Common Ground is an open-source framework for shared repository knowledge. Its notes cache verified repository patterns; code is the source of truth. Follow [AGENTS.md](../AGENTS.md); read [POLICY.md](POLICY.md) before edits.
+
+## First use: complete setup
+
+cground init installs guidance and MCP configuration, then writes a candidate map to .common-ground/local/bootstrap.json. It deliberately leaves knowledge.json absent until the developer approves the map; initialization alone does not make the knowledge workflow ready.
+
+1. Read the bootstrap proposal, repository source and READMEs. Refine responsibility boundaries, chapters and ownership paths; remove generated files and cache directories. Explain the proposed map in plain language. The agent authors the JSON; the developer approves the boundaries.
+2. After developer approval, run cground approve .common-ground/local/bootstrap.json --approve from the repository root. This creates .common-ground/knowledge.json with empty chapters. The flag records approval; it does not grant it.
+3. Verify facts against source and documentation, then populate approved chapters using cground seed PILLAR/CHAPTER FACTS.json --approve with developer direction. Run task_context start again to begin the normal workflow.
+
+Before approval, task_context start returns state: bootstrap-required, guidance and no taskId. Continue the developer's main task from source; explain the pending setup and present the reviewed map at completion. Do not call assess, propose_facts or finish without a taskId. If state is not-initialized, run cground init first. If local/bootstrap.json was removed and no registry exists, init recreates the proposal. Never create an empty knowledge.json just to suppress a setup error.
 
 ## My build failed. Where do I go?
 

@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { bootstrapNext } from './guidance.js';
 import { Store, same } from './store.js';
 import { Fact, Maintenance, Verification, Update, chapterKey, relativePath, unique, type RegistryRecord } from './model.js';
 import { page } from './paging.js';
@@ -45,8 +46,19 @@ export class Workflow {
   }
   async start(paths:string[]=[],signal?:string) {
     paths=z.array(relativePath).parse(paths);
-    // Let bootstrap failure be explicit; never create a misleading empty knowledge base.
-    const registry=await this.store.read();const taskId=randomUUID();
+    // Pending setup is expected after init; never fabricate knowledge or task state.
+    let registry:RegistryRecord;
+    try { registry=await this.store.read(); }
+    catch (e:any) {
+      if(e.code!=='ENOENT')throw e;
+      try { await this.store.safe('.common-ground/local/bootstrap.json'); }
+      catch (setupError:any) {
+        if(setupError.code!=='ENOENT')throw setupError;
+        return {state:'not-initialized',next:'Run cground init from the repository root, then review its bootstrap proposal with the developer. Continue the main task from source; no task was started, so do not assess, propose facts or finish.'};
+      }
+      return {state:'bootstrap-required',proposalPath:'.common-ground/local/bootstrap.json',next:bootstrapNext};
+    }
+    const taskId=randomUUID();
     const owners=this.store.chapters(registry).filter(({chapter})=>paths.some(p=>chapter.paths.some(s=>overlaps(p,s))));
     const matches=paths.length?undefined:await ownershipMap(this.store,{signal,limit:5});
     const routes=matches?{items:matches.items.map(({chapterId,title})=>({chapterId,title})),total:matches.total,nextCursor:matches.nextCursor}:

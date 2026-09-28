@@ -1,6 +1,6 @@
 # Demo the chapter beta
 
-Build and pack the source, then install the resulting `common-ground-knowledge-0.2.0-beta.1.tgz` using npm. Copy `examples/demo-monorepo` to a separate directory and run:
+Build and pack the source, then install the resulting `common-ground-knowledge-0.2.0-beta.2.tgz` using npm. Copy `examples/demo-monorepo` to a separate directory and run:
 
 ```sh
 cground init

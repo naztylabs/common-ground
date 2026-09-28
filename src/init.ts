@@ -4,7 +4,7 @@ import { parse, modify, applyEdits, type ParseError } from 'jsonc-parser';
 import { Store } from './store.js';
 import { discover } from './discovery.js';
 export { discover } from './discovery.js';
-import { rules, startGuide, policy } from './guidance.js';
+import { rules, startGuide, policy, bootstrapNext } from './guidance.js';
 export { rules } from './guidance.js';
 async function managed(store: Store, relative: string, body: string) {
   await store.safe(relative, true);
@@ -37,5 +37,5 @@ export async function initialize(store: Store) {
   if (configText !== nextConfig) await fs.writeFile(configFile,nextConfig);
   const proposal = exists ? { existingRegistry:true, message:'Existing pillars preserved. No new discovery or pillar creation.' } : await discover(store);
   if (!exists) await store.atomic('local/bootstrap.json',proposal);
-  return proposal;
+  return exists ? proposal : { ...proposal, state:'bootstrap-required', next:bootstrapNext };
 }

@@ -97,7 +97,7 @@ export function createServer(store:Store,profile='compact') {
   if(profile!=='compact')throw new Error('Unknown MCP profile; use compact or full.');
   const server=new McpServer({name:'common-ground',version}), workflow=new Workflow(store);
   const register=(name:string,description:string,inputSchema:any,readOnly:boolean,fn:(args:any)=>Promise<unknown>)=>server.registerTool(name,{description,inputSchema,annotations:{readOnlyHint:readOnly,destructiveHint:name==='commit_update',openWorldHint:false}},async(args:any)=>{try{return result(await fn(args));}catch(e:any){return {...result({error:e.message}),isError:true};}});
-  register('task_context','Start once per coding task; assess touched paths after edits; finish once for a quiet summary and pending approvals. Local state only.',{
+  register('task_context','Start once per coding task; assess touched paths after edits; finish once for a quiet summary and pending approvals. Without a taskId, follow returned setup guidance and continue from source. Local state only.',{
     action:z.enum(['start','assess','finish']),taskId:z.string().uuid().optional(),paths:z.array(relativePath).optional(),signal:z.string().optional(),refresh:z.boolean().optional(),...paging,
   },false,async({action,taskId,paths,signal,cursor,limit,refresh})=>{
     if(action==='start')return workflow.start(paths,signal);
