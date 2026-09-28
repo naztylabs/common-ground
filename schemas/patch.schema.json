@@ -1,0 +1,203 @@
+{
+  "$ref": "#/definitions/patch",
+  "definitions": {
+    "patch": {
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "chapterId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9-]*$"
+        },
+        "factIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "minItems": 1
+        },
+        "touchedPaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "tidyId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "verification": {
+          "type": "object",
+          "properties": {
+            "sourceFiles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/patch/properties/touchedPaths/items"
+              }
+            },
+            "documentFiles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/patch/properties/touchedPaths/items"
+              }
+            }
+          },
+          "required": [
+            "sourceFiles",
+            "documentFiles"
+          ],
+          "additionalProperties": false
+        },
+        "reviews": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "chapterId": {
+                "$ref": "#/definitions/patch/properties/chapterId"
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reviewedAllFacts": {
+                "type": "boolean",
+                "const": true
+              },
+              "replacements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/definitions/patch/properties/factIds/items"
+                    },
+                    "statement": {
+                      "type": "string",
+                      "minLength": 8,
+                      "maxLength": 320
+                    },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "$ref": "#/definitions/patch/properties/touchedPaths/items"
+                          },
+                          "quote": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1200
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "quote"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "minItems": 1,
+                      "maxItems": 8
+                    },
+                    "sourceScope": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/patch/properties/touchedPaths/items"
+                      },
+                      "minItems": 1
+                    },
+                    "dependsOn": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9-]*\\/[a-z0-9][a-z0-9-]*$"
+                      },
+                      "default": []
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "statement",
+                    "evidence",
+                    "sourceScope"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": []
+              },
+              "removeFactIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 12,
+                "maxLength": 1000
+              },
+              "maintenance": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "factId": {
+                      "$ref": "#/definitions/patch/properties/factIds/items"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "correct",
+                        "merge",
+                        "remove",
+                        "tighten"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 12,
+                      "maxLength": 1000
+                    },
+                    "replacement": {
+                      "$ref": "#/definitions/patch/properties/reviews/items/properties/replacements/items/properties/dependsOn/items"
+                    }
+                  },
+                  "required": [
+                    "factId",
+                    "action",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "chapterId",
+              "expectedRevision",
+              "reviewedAllFacts",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "taskId",
+        "chapterId",
+        "touchedPaths",
+        "verification",
+        "reviews"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

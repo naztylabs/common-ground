@@ -372,9 +372,23 @@ export class Store {
       const evaluated=await this.evaluate(proposal.request,registry);
       if(!same(evaluated.snapshots,proposal.snapshots))throw new Error('Source changed during review; prepare a new proposal.');
       if(!same(evaluated.reviewSnapshots,proposal.reviewSnapshots))throw new Error('Reviewed source or documentation changed; prepare a new proposal.');
+      let task:any, taskName:string|undefined;
+      if(proposal.taskId){
+        if(!/^[0-9a-f-]{36}$/.test(proposal.taskId))throw new Error('Invalid task ID');
+        taskName=`local/task-${proposal.taskId}.json`;await this.safe(`.common-ground/${taskName}`);
+        task=JSON.parse(await fs.readFile(this.file(taskName),'utf8'));
+        if(!task.pending.includes(id))throw new Error('Prepared update does not belong to this task.');
+        for(const review of evaluated.request.reviews)for(const factId of review.invalidatedFactIds){
+          task.changes[`${review.chapterId}/${factId}`]=review.facts.find(f=>f.id===factId)?.statement??'(removed)';
+        }
+        task.pending=task.pending.filter((pending:string)=>pending!==id);
+      }
       for(const key of evaluated.changed){const c=this.chapter(registry,key);c.facts=evaluated.request.reviews.find(r=>r.chapterId===key)!.facts;c.revision++;c.sources=evaluated.snapshots[key];}
       for(const key of evaluated.changed)this.chapter(registry,key).dependencyFingerprints=this.dependencyFingerprints(registry,key);
-      await this.persist(registry);await this.markReviewed(registry,evaluated.required,evaluated.snapshots);await fs.rm(this.file(`local/${id}.json`));
+      await this.persist(registry);
+      // A failed local receipt leaves the pending ID visible at finish; never report false silence.
+      if(taskName)await this.atomic(taskName,task);
+      await this.markReviewed(registry,evaluated.required,evaluated.snapshots);await fs.rm(this.file(`local/${id}.json`));
       return {changedChapters:evaluated.changed,reviewedChapters:evaluated.required};
     });
   }

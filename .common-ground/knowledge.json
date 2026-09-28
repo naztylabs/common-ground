@@ -18,9 +18,10 @@
             "schemas",
             "src/review-files.ts",
             "docs/architecture.md",
-            "docs/pillar-contract.md"
+            "docs/pillar-contract.md",
+            "src/workflow.ts"
           ],
-          "revision": 4,
+          "revision": 5,
           "facts": [
             {
               "id": "registry-schema",
@@ -52,15 +53,24 @@
             },
             {
               "id": "complete-review",
-              "statement": "Routine updates require the IDs of every existing fact in reviewedFactIds.",
+              "statement": "Updates require whole-chapter review; compact patches attest the expected revision and reconstruct unchanged facts and reviewed IDs server-side.",
               "evidence": [
                 {
                   "path": "src/store.ts",
                   "quote": "throw new Error('Every existing fact must be reviewed.')"
+                },
+                {
+                  "path": "src/workflow.ts",
+                  "quote": "reviewedAllFacts:z.literal(true)"
+                },
+                {
+                  "path": "src/workflow.ts",
+                  "quote": "reviewedFactIds:old.facts.map(f=>f.id)"
                 }
               ],
               "sourceScope": [
-                "src/store.ts"
+                "src/store.ts",
+                "src/workflow.ts"
               ],
               "dependsOn": []
             },
@@ -80,17 +90,27 @@
             },
             {
               "id": "no-routine-growth",
-              "statement": "Routine updates reject facts with IDs absent from the current chapter.",
+              "statement": "Routine patches only edit existing facts; proposals remain task-local, and batch admission requires a finished task and complete linked-chapter reviews.",
               "evidence": [
                 {
-                  "path": "src/store.ts",
-                  "quote": "throw new Error('New facts require developer-reviewed admission.')"
+                  "path": "src/workflow.ts",
+                  "quote": "throw new Error('Patches only edit existing facts; queue additions with propose_facts.')"
+                },
+                {
+                  "path": "src/workflow.ts",
+                  "quote": "if(task.phase!=='awaiting-approval')throw new Error('Finish the developer task before admitting new facts.');"
+                },
+                {
+                  "path": "src/workflow.ts",
+                  "quote": "if(!same(keys,review.reviews.map(r=>r.chapterId).sort()))throw new Error(`Review every linked chapter: ${keys.join(', ')}`);"
                 }
               ],
               "sourceScope": [
-                "src/store.ts"
+                "src/workflow.ts"
               ],
-              "dependsOn": []
+              "dependsOn": [
+                "knowledge-engine/overview/complete-review"
+              ]
             },
             {
               "id": "fact-dependencies",
@@ -154,9 +174,12 @@
           ],
           "sources": {
             "src/model.ts": "97341e2dabd5f8d9bfe188fdd713e0ea09d2ab9bbfae1318392b5319de0915d7",
-            "src/store.ts": "389b88c8504b31429a7fd7d52c1949557f72c46ece519716581519e61417658a"
+            "src/store.ts": "89f4f262e0e234d0a78ed604e8f3b2c0d605d624e97b9c96af6364bbe88fa082",
+            "src/workflow.ts": "28c5edb61451e3945273c6fdb9c7c88033d1dbdd3c053bab405944a93939c7a7"
           },
-          "dependencyFingerprints": {}
+          "dependencyFingerprints": {
+            "knowledge-engine/overview/complete-review": "99e066b2c3ed5475649821a261d448511ff5e80490749bf4fcb3451890f7296f"
+          }
         }
       ]
     },
@@ -177,9 +200,10 @@
             "AGENTS.md",
             "README.md",
             "docs/knowledge-policy.md",
-            ".common-ground/START_HERE.md"
+            ".common-ground/START_HERE.md",
+            ".common-ground/POLICY.md"
           ],
-          "revision": 3,
+          "revision": 4,
           "facts": [
             {
               "id": "bounded-discovery",
@@ -211,15 +235,24 @@
             },
             {
               "id": "copilot-adapter",
-              "statement": "Initialization adds managed root AGENTS.md guidance and a Copilot instruction link.",
+              "statement": "Initialization manages short root AGENTS.md instructions, a detailed POLICY.md loaded before edits, and a Copilot instruction link.",
               "evidence": [
                 {
                   "path": "src/init.ts",
                   "quote": "await managed(store,'AGENTS.md',rules);"
+                },
+                {
+                  "path": "src/init.ts",
+                  "quote": "await managed(store,'.common-ground/POLICY.md',policy);"
+                },
+                {
+                  "path": "src/guidance.ts",
+                  "quote": "Before editing, read [.common-ground/POLICY.md](.common-ground/POLICY.md)"
                 }
               ],
               "sourceScope": [
-                "src/init.ts"
+                "src/init.ts",
+                "src/guidance.ts"
               ],
               "dependsOn": []
             },
@@ -258,8 +291,8 @@
             }
           ],
           "sources": {
-            "src/guidance.ts": "9f8be5a6e24a8bf9478c69b1fd98594ae8441683973fac8135eb723a800c5752",
-            "src/init.ts": "ea621426aa6cfef2d8cc36b721c56a0c929aa5e44d6646562e6e86aac4b03af0"
+            "src/guidance.ts": "f4bcf70e809e98001cadb8e788f2d16cbe02c5c715e305a70c91bf0922a928e1",
+            "src/init.ts": "9187fa93b9b566a5ac603998dab5bcb72c111418f7a3187bb21c5805d13f2751"
           },
           "dependencyFingerprints": {}
         }
@@ -280,17 +313,22 @@
             "src/cli.ts",
             "src/server.ts",
             "src/navigation.ts",
-            "src/paging.ts"
+            "src/paging.ts",
+            "docs/quiet-workflow.md"
           ],
-          "revision": 3,
+          "revision": 4,
           "facts": [
             {
               "id": "stdio-transport",
-              "statement": "The MCP service connects through StdioServerTransport.",
+              "statement": "The stdio MCP service defaults to the compact task workflow; --profile full retains the original individual tools.",
               "evidence": [
                 {
                   "path": "src/server.ts",
-                  "quote": "await createServer(store).connect(new StdioServerTransport())"
+                  "quote": "export async function serve(store:Store,profile='compact'){await createServer(store,profile).connect(new StdioServerTransport());}"
+                },
+                {
+                  "path": "src/server.ts",
+                  "quote": "if(profile==='full')return createFullServer(store);"
                 }
               ],
               "sourceScope": [
@@ -314,17 +352,23 @@
             },
             {
               "id": "developer-approval",
-              "statement": "CLI pillar approval requires the explicit --approve flag.",
+              "statement": "CLI pillar approval and queued task fact admission require an explicit --approve flag; the flag declares developer direction rather than proving authorization.",
               "evidence": [
                 {
                   "path": "src/cli.ts",
                   "quote": "if(!approved)throw new Error('Developer approval required: inspect the proposal, then pass --approve.')"
+                },
+                {
+                  "path": "src/cli.ts",
+                  "quote": "case 'accept-facts': if(!approved)throw new Error('Explicit developer approval of the finished task batch required: --approve.');"
                 }
               ],
               "sourceScope": [
                 "src/cli.ts"
               ],
-              "dependsOn": []
+              "dependsOn": [
+                "knowledge-engine/overview/no-routine-growth"
+              ]
             },
             {
               "id": "tool-errors",
@@ -384,12 +428,14 @@
             }
           ],
           "sources": {
-            "src/cli.ts": "dae251cf3bfee6593019fad53df6bad8252be79995b825369d39e46f1d49e891",
+            "src/cli.ts": "ffbda13705c28f7600bb33f39af47d286b17f2c86ff6fe8d99dfeab58f1a09c9",
             "src/navigation.ts": "26ad7be39aa505b3f571784a791c89280f5d27f2675c7b3936cf0e0f84cd74fb",
-            "src/server.ts": "e5bfca5342068e74bdd9c2f838fa6e6f7d48aa3cb0bdc6e96d77940ade4c3f88"
+            "src/server.ts": "6f086de6f86f906b451f5b81cfdd3c69166992aff79ae03bb637961e0c400513"
           },
           "dependencyFingerprints": {
-            "knowledge-engine/overview/fact-dependencies": "11da378906782753f58385fc3d275d1f8c3b1493b28ebc1d11649ae1aa13d8f5"
+            "knowledge-engine/overview/complete-review": "99e066b2c3ed5475649821a261d448511ff5e80490749bf4fcb3451890f7296f",
+            "knowledge-engine/overview/fact-dependencies": "11da378906782753f58385fc3d275d1f8c3b1493b28ebc1d11649ae1aa13d8f5",
+            "knowledge-engine/overview/no-routine-growth": "7fef20409ef81a5ac658c64b06ec1337f03c0648c44a64cc8e1f8c8bfce561d3"
           }
         }
       ]

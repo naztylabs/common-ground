@@ -23,7 +23,8 @@
     "prepack": "npm run schema",
     "demo": "npm run build && node scripts/demo.mjs",
     "schema": "npm run build && node scripts/schema.mjs",
-    "release:pack": "npm test && npm run demo && node scripts/release-pack.mjs"
+    "release:pack": "npm test && npm run demo && node scripts/release-pack.mjs",
+    "measure:context": "npm run build && node scripts/measure-context.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
