@@ -21,7 +21,7 @@
             "docs/pillar-contract.md",
             "src/workflow.ts"
           ],
-          "revision": 5,
+          "revision": 6,
           "facts": [
             {
               "id": "registry-schema",
@@ -39,11 +39,11 @@
             },
             {
               "id": "fact-limit",
-              "statement": "Each fact statement is limited to 320 characters and requires at least one evidence quote.",
+              "statement": "Each fact statement allows up to 2,000 characters and requires at least one evidence quote.",
               "evidence": [
                 {
                   "path": "src/model.ts",
-                  "quote": "statement: z.string().trim().min(8).max(320), evidence: z.array(Evidence).min(1).max(8)"
+                  "quote": "statement: z.string().trim().min(8).max(2000), evidence: z.array(Evidence).min(1).max(8)"
                 }
               ],
               "sourceScope": [
@@ -173,9 +173,9 @@
             }
           ],
           "sources": {
-            "src/model.ts": "97341e2dabd5f8d9bfe188fdd713e0ea09d2ab9bbfae1318392b5319de0915d7",
+            "src/model.ts": "65c7e85a5751a34f1e4867d311b26a02ce1a30f21be38d22f9190ce25a3f7938",
             "src/store.ts": "89f4f262e0e234d0a78ed604e8f3b2c0d605d624e97b9c96af6364bbe88fa082",
-            "src/workflow.ts": "28c5edb61451e3945273c6fdb9c7c88033d1dbdd3c053bab405944a93939c7a7"
+            "src/workflow.ts": "742595c150b03abfe1fdacd0c7564ffa296ce9fb2632f725d193be7b2fcea745"
           },
           "dependencyFingerprints": {
             "knowledge-engine/overview/complete-review": "99e066b2c3ed5475649821a261d448511ff5e80490749bf4fcb3451890f7296f"

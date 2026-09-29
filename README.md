@@ -24,7 +24,7 @@ Common Ground is MIT licensed. The project focuses on giving developers a useful
 
 - **Pillars** are stable repository responsibilities: CI/CD, workspace tooling, reusable UI, or a Java application.
 - **Chapters** index facts for coherent subareas within a pillar: Search and Search Results within Reusable Web Components.
-- **Facts** contain a terse assertion, exact evidence, `sourceScope`, and `dependsOn` fact references. They describe the repository, not an agent's activity history.
+- **Facts** contain one coherent assertion (up to 2,000 characters), exact evidence, `sourceScope`, and `dependsOn` fact references. Include the conditions, behavior, and consequences needed to understand the claim; the limit is room for context, not a target. They describe the repository, not an agent's activity history.
 
 A pillar has a chapter index, not a giant fact dump. The agent lists chapters, skims their scopes, reads the relevant chapter's fact pages, and fetches evidence as needed. When a developer asks a question, the agent responds in plain language, references useful evidence, and discloses stale or uncertain knowledge.
 
@@ -37,7 +37,7 @@ There is **no fixed fact-count ceiling**. Read responses are paginated to keep c
 3. **Do the developer's task:** maintain existing facts quietly within the affected scope. Call `task_context assess` with files this task actually touched, including new/deleted files. If none affect recorded facts, skip fact review but still check the relevant README. Follow additional connections found in source.
 4. **Correct verified contradictions in place:** read the complete affected chapters, dependencies/dependents, source, and related documentation. `prepare_patch` sends only changed facts and declares review of each complete chapter revision; `commit_update` rechecks the transaction and writes the corrections to the working tree. No unrelated cleanup or automatic commits.
 5. **Defer additions:** queue worthwhile new facts with `propose_facts`. These drafts are ignored local state, never shared knowledge. A new component usually needs its local README, not another subsystem fact. New facts, chapters, pillars and ownership expansion require developer direction.
-6. **Finish once:** after the main task and its checks, `task_context finish` produces a brief correction summary and a single batch of proposed additions. The agent reports actual changes, for example: “I corrected Common Ground's search-threshold fact; it is in your Git working tree for review.” With nothing changed or pending, no Common Ground report is needed. Uncertainty is raised immediately only if it blocks the main task; otherwise it is collected for completion. Never guess.
+6. **Finish once:** after the main task and its checks, `task_context finish` produces a brief correction summary and a single batch of proposed additions. For additions, the agent presents the facts and evidence and asks: “Ready to make the following facts available to the team?” Corrections already in the working tree are linked for review before committing. The agent reports actual changes, for example: “I corrected Common Ground's search-threshold fact; it is in your Git working tree for review.” With nothing changed or pending, no Common Ground report is needed. Uncertainty is raised immediately only if it blocks the main task; otherwise it is collected for completion. Never guess.
 7. **Admit after approval:** the agent reads all proposed facts, required chapters and current source/documentation, then runs `cground accept-facts TASK_ID REVIEW.json --approve`. The batch is validated before one shared write. The developer approves plain-language facts; the agent authors the JSON.
 
 Durable knowledge covers subsystem behavior, architecture, connections, build/deploy mechanics, established conventions, and commands verified in source. It excludes bugs, open issues, work to fix, postmortems, debugging narratives, generic technology explainers, unverified claims, and temporary checkout state.
@@ -50,10 +50,10 @@ Exact quotes, review declarations, and hashes do not prove natural-language trut
 
 Requires Node.js 22+ and npm; source development targets Node 24 through `.nvmrc`. Distribution uses GitHub Releases; this package has not been published to npmjs.com.
 
-Once a version is released, download its `common-ground-knowledge-VERSION.tgz` asset from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install the downloaded file. For example, for `0.2.0-beta.2`:
+Once a version is released, download its `common-ground-knowledge-VERSION.tgz` asset from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install the downloaded file. For example, for `0.3.0-beta.1`:
 
 ```sh
-npm install -g ./common-ground-knowledge-0.2.0-beta.2.tgz
+npm install -g ./common-ground-knowledge-0.3.0-beta.1.tgz
 cground --version
 ```
 
@@ -65,7 +65,7 @@ To build an archive from a clone:
 nvm use                 # with nvm; run nvm install first if needed
 npm ci
 npm run release:pack
-npm install -g ./release/common-ground-knowledge-0.2.0-beta.2.tgz
+npm install -g ./release/common-ground-knowledge-0.3.0-beta.1.tgz
 cground --version
 ```
 
@@ -78,8 +78,8 @@ No model API key, telemetry, cloud service, or vector database is required. The 
 After committing the release workflow and changes, push a tag that matches `package.json`. For the current version:
 
 ```sh
-git tag -a v0.2.0-beta.2 -m "Common Ground 0.2.0-beta.2"
-git push origin v0.2.0-beta.2
+git tag -a v0.3.0-beta.1 -m "Common Ground 0.3.0-beta.1"
+git push origin v0.3.0-beta.1
 ```
 
 The GitHub Actions workflow validates the tag, runs the same packaging checks, tests an isolated archive installation, and creates a release with both assets. Beta versions become prereleases. It uses GitHub's built-in token and needs no npm account or npm publishing token. See [release setup, versioning, and troubleshooting](docs/releases.md).
@@ -90,6 +90,8 @@ The GitHub Actions workflow validates the tag, runs the same packaging checks, t
 cd /path/to/repository
 cground init
 ```
+
+`init` prints a short setup summary and a review link. Use `cground init --json` for the full discovery response. Fresh repositories link to the proposed map and identify knowledge.json as the next review target once created; existing repositories link directly to knowledge.json.
 
 Initialization is the first of two setup stages: `knowledge.json` is created only after the developer approves the responsibility map. Until then, task startup returns `bootstrap-required` with next steps and no task ID; agents continue the main task from source.
 
@@ -124,6 +126,21 @@ The fact input is an array of records such as:
 ```
 
 Commit `.common-ground/knowledge.json`, `.common-ground/START_HERE.md`, `.common-ground/POLICY.md`, the managed instruction files, `.vscode/mcp.json`, and `.gitignore`. `init` creates or updates a marked ignore block for `.common-ground/local/`; existing entries are preserved. Already-tracked files must be explicitly untracked.
+
+## Pre-commit knowledge reminders
+
+`cground init` installs an advisory Git pre-commit hook by default in a Git repository without an existing hook. Each checkout needs initialization. The hook checks **staged** knowledge against **staged** source, including when a developer uses no agent. It reports stale chapters and reminds developers to review staged knowledge changes before making facts available to the team. It never edits facts, prompts for terminal input, or blocks a commit.
+
+```sh
+cground hook mute     # Suppress notifications in this checkout
+cground hook unmute   # Restore notifications
+cground hook check    # Run the advisory staged check directly
+cground hook install  # Install after git init, without refreshing setup
+```
+
+Muting is saved in local Git configuration and survives repeated initialization; the check still runs. Existing pre-commit hooks and `core.hooksPath` configurations are preserved. For Husky or another hook manager, add `cground hook check` to its pre-commit entry point; init reports when this integration is needed. The executable `cground` must be on Git's PATH. If unavailable, the managed hook shows a reminder unless muted and allows the commit.
+
+The check exports the index into a disposable temporary directory, so large repositories incur checkout cost. It checks recorded scopes and dependencies, not every possible semantic effect. Matching local no-op review receipts can acknowledge harmless drift; those receipts are not shared with teammates. Submodule contents are not exported and evidence inside them needs separate review. For a strict working-tree freshness check, use `cground check`; it retains its nonzero exit status when review is needed.
 
 ## Upgrade a pillar-only beta repository
 

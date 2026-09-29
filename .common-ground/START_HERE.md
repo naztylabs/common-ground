@@ -9,7 +9,7 @@ cground init installs guidance and MCP configuration, then writes a candidate ma
 
 1. Read the bootstrap proposal, repository source and READMEs. Refine responsibility boundaries, chapters and ownership paths; remove generated files and cache directories. Explain the proposed map in plain language. The agent authors the JSON; the developer approves the boundaries.
 2. After developer approval, run cground approve .common-ground/local/bootstrap.json --approve from the repository root. This creates .common-ground/knowledge.json with empty chapters. The flag records approval; it does not grant it.
-3. Verify facts against source and documentation, then populate approved chapters using cground seed PILLAR/CHAPTER FACTS.json --approve with developer direction. Run task_context start again to begin the normal workflow.
+3. Verify facts against source and documentation. Present the facts and evidence, ask "Ready to make the following facts available to the team?", and wait for approval. Then populate approved chapters using cground seed PILLAR/CHAPTER FACTS.json --approve with developer direction. Run task_context start again to begin the normal workflow.
 
 Before approval, task_context start returns state: bootstrap-required, guidance and no taskId. Continue the developer's main task from source; explain the pending setup and present the reviewed map at completion. Do not call assess, propose_facts or finish without a taskId. If state is not-initialized, run cground init first. If local/bootstrap.json was removed and no registry exists, init recreates the proposal. Never create an empty knowledge.json just to suppress a setup error.
 
@@ -37,6 +37,8 @@ cground task finish TASK_ID
 After explicit approval and full review: cground accept-facts TASK_ID REVIEW.json --approve. See POLICY.md for the review format and remaining admission rules. Reject unwanted drafts with cground drop-facts TASK_ID FACT_KEY... before admitting the batch.
 
 The default MCP profile exposes five tools. Existing detailed CLI commands still work; cground serve --profile full exposes the previous thirteen MCP tools. Full-profile agents follow the same quiet workflow policy using the task CLI commands. Neither profile overrides host tool approval settings.
+
+Review [knowledge.json](knowledge.json) before committing knowledge changes. The advisory pre-commit hook checks staged knowledge and sources, reminds developers about review, and allows the commit. It does not approve or edit facts. Notifications are on by default; use cground hook mute to suppress them in this checkout and cground hook unmute to restore them. With an existing hook manager, add cground hook check to its pre-commit hook.
 
 Commit knowledge.json, this guide and POLICY.md. Keep local/ ignored. Local task state can be removed after the task and admission review are complete; never remove another active task's files.
 <!-- common-ground:end -->

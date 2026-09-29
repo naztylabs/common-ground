@@ -4,7 +4,7 @@ A pillar owns a stable repository responsibility. A chapter owns a coherent suba
 
 Chapter definitions include a title, scope, exclusions, literal repository-relative file/directory paths defining an authoring boundary. Facts carry their own `sourceScope`, evidence, and `dependsOn` references in `pillar/chapter/fact` form. Scopes must not overlap; fact dependencies must reference an existing fact and cannot refer to themselves. Fact dependencies may cross chapters and pillars. Cycles terminate safely during traversal. New pillars and chapters require developer approval; new pillars also require an uncovered standalone responsibility.
 
-Facts have no count ceiling. A fact statement is limited to 320 characters and requires exact source evidence within its own source scope and its chapter's authoring boundary. Matching quotes and hashes establish evidence presence and freshness, not semantic truth.
+Facts have no count ceiling. A fact statement is limited to 2,000 characters and requires exact source evidence within its own source scope and its chapter's authoring boundary. Matching quotes and hashes establish evidence presence and freshness, not semantic truth.
 
 ## Navigate without loading the whole knowledge base
 
