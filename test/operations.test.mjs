@@ -62,7 +62,7 @@ test('confirmation rejects changed affected scope and does not issue a tidy rece
 });
 test('every CLI command has an MCP operation or explicit transport/group mapping',async()=>{
  const {operations}=await import('../dist/operations.js');const names=new Set(Object.keys(operations(new Store('/tmp'))));
- const cli=await fs.readFile('src/cli.ts','utf8');
- const mappings={serve:[],hook:['hook-check','hook-install','hook-mute','hook-unmute'],task:['task-start','task-assess','task-finish'],'--version':['version']};
- for(const match of cli.matchAll(/^ case '([^']+)'/gm))for(const name of mappings[match[1]]??[match[1]])assert.ok(names.has(name),`CLI ${match[1]} lacks MCP operation ${name}`);
+ const {commands}=await import('../dist/commands.js');
+ for(const command of commands)if(command.name!=='serve')assert.ok(names.has(command.operation),`CLI ${command.name} lacks MCP operation ${command.operation}`);
+ for(const operation of names)if(operation!=='version')assert.ok(commands.some(command=>command.operation===operation),`MCP ${operation} lacks a CLI command`);
 });

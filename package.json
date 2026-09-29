@@ -1,6 +1,6 @@
 {
   "name": "common-ground-knowledge",
-  "version": "0.3.0-beta.1",
+  "version": "0.4.0-beta.0",
   "description": "An open-source framework for shared, evidence-backed repository knowledge across coding agents",
   "type": "module",
   "license": "MIT",
@@ -38,7 +38,7 @@
   },
   "contributors": [
     {
-      "name": "OpenAI Codex"
+      "name": "Nazty Labs"
     }
   ]
 }

@@ -331,7 +331,7 @@
             "src/paging.ts",
             "docs/quiet-workflow.md"
           ],
-          "revision": 5,
+          "revision": 6,
           "facts": [
             {
               "id": "stdio-transport",
@@ -371,11 +371,7 @@
               "evidence": [
                 {
                   "path": "src/cli.ts",
-                  "quote": "if(!approved)throw new Error('Developer approval required: inspect the proposal, then pass --approve.')"
-                },
-                {
-                  "path": "src/cli.ts",
-                  "quote": "case 'accept-facts': if(!approved)throw new Error('Explicit developer approval of the finished task batch required: --approve.');"
+                  "quote": "if(command.flags.includes('approve') && values.approve!==true)throw new Error('Developer approval required: inspect the proposal, then pass --approve.');"
                 }
               ],
               "sourceScope": [
@@ -443,9 +439,9 @@
             }
           ],
           "sources": {
-            "src/cli.ts": "cc240d3cb61a43a1e92cdcf69109bf9f08ccee7cb2cfa6c0938299139fabe79b",
-            "src/navigation.ts": "26ad7be39aa505b3f571784a791c89280f5d27f2675c7b3936cf0e0f84cd74fb",
-            "src/server.ts": "6f086de6f86f906b451f5b81cfdd3c69166992aff79ae03bb637961e0c400513"
+            "src/cli.ts": "606b202b469b58b13605419285490806f38b53fa78815720906452f7248ed294",
+            "src/navigation.ts": "6db220c24e01d28721f2f3a260bb5e36d603f461036d558f6c222c6436aa6cd8",
+            "src/server.ts": "947c292d0bbdd2e2957bfa90b6f21a290c7d67e68efb4a2b01a4af8c779530ce"
           },
           "dependencyFingerprints": {
             "knowledge-engine/overview/complete-review": "99e066b2c3ed5475649821a261d448511ff5e80490749bf4fcb3451890f7296f",

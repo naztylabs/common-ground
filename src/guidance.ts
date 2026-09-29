@@ -99,6 +99,8 @@ cground validate defaults to all; a pillar, chapter, qualified fact, or unique f
 
 ## CLI and compatibility
 
+Every command supports --help or -h without running it, including cground hook --help and cground task assess --help. Use --json for scripts and cground export to refresh the ignored Markdown reference. Check and validate are equivalent.
+
 cground task start --touched PATH1,PATH2
 cground task assess TASK_ID --touched PATH1,PATH2
 cground read-knowledge REQUEST.json
