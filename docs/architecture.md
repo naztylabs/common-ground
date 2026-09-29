@@ -4,7 +4,9 @@ Common Ground is an open-source framework combining a repository knowledge model
 
 The supported customization surface is repository definitions and supplemental guidance, plus CLI/MCP integrations. Custom discovery, validators, record fields, storage backends, and tools require source changes. There is no plugin loader, stable public SDK, lifecycle-hook API, or configurable discovery-provider interface in this beta. Internal module exports are implementation details rather than a promised extension contract.
 
-- `src/operations.ts`: discoverable structured MCP parity for CLI workflows, per-operation schemas and approval declarations.
+- `src/operations.ts`: shared CLI/MCP execution and validation, per-operation schemas and approval declarations.
+- `src/commands.ts`: dependency-free CLI syntax/help metadata and strict built-in argument parsing.
+- `src/retrieval.ts`: transport-independent navigation and task-scoped retrieval, also re-exported by the server for compatibility.
 - `src/maintenance.ts`: shared CLI/MCP checks, stale summaries and scoped cleanup handoffs.
 - `src/export.ts`: complete deterministic Markdown rendering and atomic refresh of the ignored local reference.
 - `src/model.ts`: strict schema v2 pillar, chapter, fact, and multi-chapter review records; schema v1 migration input.
@@ -18,7 +20,7 @@ The supported customization surface is repository definitions and supplemental g
 - `src/review-files.ts`: bounded discovery of local, sibling, child, and referenced review documentation.
 - `src/guidance.ts`: short entry instructions, detailed policy and managed Start Here guide.
 - `src/paging.ts`: shared pagination and cursor validation.
-- `src/cli.ts`: agent/operator CLI and MCP entry point.
+- `src/cli.ts`: shell-to-operation adapter, concise terminal output, and lazy MCP entry point.
 
 `.common-ground/knowledge.json` is a Git-tracked registry. Pillars contain chapter definitions; chapters index facts and define authoring boundaries. Facts own exact evidence, source scopes, and directed fact-to-fact dependencies. One atomic file permits all affected chapter revisions to publish together. `.common-ground/local/` contains a generated `knowledge.md` view of the complete registry, ignored proposals, review snapshots, a migration backup, tidy request receipts, task receipts/context fingerprints, queued fact drafts, and a writer lock. `.common-ground/START_HERE.md` and `.common-ground/POLICY.md` are tracked guidance. Ownership maps and pillar graphs are derived from the registry rather than duplicated in a second data model.
 

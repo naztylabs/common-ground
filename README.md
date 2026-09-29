@@ -1,266 +1,134 @@
 # Common Ground
 
-An open-source framework for shared codebase knowledge.
+An open-source framework for shared, Git-backed repository knowledge.
 
-Common Ground is an open-source framework developers can add to their projects to share verified knowledge across coding agents. It runs locally and keeps knowledge in Git, giving agents the shared understanding developers build through everyday conversations so another developer's agent can reuse it instead of repeating the investigation.
+Common Ground gives coding agents a reusable map of your codebase: **pillars** describe responsibilities, **chapters** organize subareas, and **facts** record source-backed behavior. Your team shares the knowledge through Git. Agents read and maintain it through a local CLI or MCP server; developers approve new knowledge and responsibility boundaries.
 
-**Agents discover, write, and maintain the knowledge. Developers approve responsibility boundaries and resolve uncertainty; they should not have to author JSON.** Git distributes the records alongside the code.
+No model API key, telemetry, cloud service, or vector database is required. Code remains the source of truth.
 
-Common Ground provides the knowledge structure, maintenance rules, CLI, and local MCP server as a foundation that developers can adapt and extend for their own repositories and workflows.
+## Get started
 
-## Adopt and extend
-
-Install the package and run `cground init` in an existing repository to add the starting structure and agent guidance. Work with your agent to establish the repository's responsibilities and verified facts, then evolve that setup as the codebase grows.
-
-- **Shape it around your repository:** define pillars and chapters for your subsystems, conventions, and build workflows.
-- **Add your team's guidance:** keep project-specific instructions outside Common Ground's marked sections; initialization preserves that content.
-- **Extend the framework:** build integrations around the CLI, MCP tools, and documented JSON schemas, or modify the TypeScript implementation for your needs. See [the architecture](docs/architecture.md) and [the record contract](docs/pillar-contract.md).
-
-Repository customization and CLI/MCP integrations are supported today. Deeper extensions—custom discovery rules, validators, record fields, storage backends, or tools—currently require source changes. The beta has no plugin loader, stable public SDK, lifecycle-hook API, or configurable discovery-provider interface. Team guidance supplements the workflow; it cannot override validation enforced by the code.
-
-Common Ground is MIT licensed. The project focuses on giving developers a useful foundation they can adopt, maintain, and build upon.
-
-## Pillars → Chapters → Facts
-
-- **Pillars** are stable repository responsibilities: CI/CD, workspace tooling, reusable UI, or a Java application.
-- **Chapters** index facts for coherent subareas within a pillar: Search and Search Results within Reusable Web Components.
-- **Facts** contain one coherent assertion (up to 2,000 characters), exact evidence, `sourceScope`, and `dependsOn` fact references. Include the conditions, behavior, and consequences needed to understand the claim; the limit is room for context, not a target. They describe the repository, not an agent's activity history.
-
-A pillar has a chapter index, not a giant fact dump. The agent lists chapters, skims their scopes, reads the relevant chapter's fact pages, and fetches evidence as needed. When a developer asks a question, the agent responds in plain language, references useful evidence, and discloses stale or uncertain knowledge.
-
-There is **no fixed fact-count ceiling**. Read responses are paginated to keep context manageable. The beta still loads the registry internally and requires complete chapter reviews; it is not yet a production performance solution for huge knowledge graphs.
-
-## Intended workflow
-
-1. **Initialize:** the agent proposes stable responsibility boundaries and chapters, then populates source-backed facts after developer approval. Initialization creates a short `AGENTS.md` entry, a Start Here guide, and the detailed `.common-ground/POLICY.md` policy.
-2. **Find and read only what is relevant:** call `task_context start` once per coding task with known paths or a short signal. A path can take the agent directly to the owning chapter. Use `read_knowledge` to browse indexes or read chapter pages with `evidence: true`, then open the source this session. Signal matches are hints, not diagnoses.
-3. **Do the developer's task:** maintain existing facts quietly within the affected scope. Call `task_context assess` with files this task actually touched, including new/deleted files. If none affect recorded facts, skip fact review but still check the relevant README. Follow additional connections found in source.
-4. **Correct verified contradictions in place:** read the complete affected chapters, dependencies/dependents, source, and related documentation. `prepare_patch` sends only changed facts and declares review of each complete chapter revision; `commit_update` rechecks the transaction and writes the corrections to the working tree. No unrelated cleanup or automatic commits.
-5. **Defer additions:** queue worthwhile new facts with `propose_facts`. These drafts are ignored local state, never shared knowledge. A new component usually needs its local README, not another subsystem fact. New facts, chapters, pillars and ownership expansion require developer direction.
-6. **Finish once:** after the main task and its checks, `task_context finish` produces a brief correction summary and a single batch of proposed additions. For additions, the agent presents the facts and evidence and asks: “Ready to make the following facts available to the team?” Corrections already in the working tree are linked for review before committing. The agent reports actual changes, for example: “I corrected Common Ground's search-threshold fact; it is in your Git working tree for review.” With nothing changed or pending, no Common Ground report is needed. Uncertainty is raised immediately only if it blocks the main task; otherwise it is collected for completion. Never guess.
-7. **Admit after approval:** the agent reads all proposed facts, required chapters and current source/documentation, then runs `cground accept-facts TASK_ID REVIEW.json --approve`. The batch is validated before one shared write. The developer approves plain-language facts; the agent authors the JSON.
-
-Durable knowledge covers subsystem behavior, architecture, connections, build/deploy mechanics, established conventions, and commands verified in source. It excludes bugs, open issues, work to fix, postmortems, debugging narratives, generic technology explainers, unverified claims, and temporary checkout state.
-
-Any developer can request `cground tidy all`, `cground tidy PILLAR`, `cground tidy PILLAR/CHAPTER`, or `cground tidy PILLAR/CHAPTER/FACT` (a unique fact ID also works). The command creates a plan and local `tidyId`; the calling agent reads source and submits the cleanup. Common Ground remains model-independent and makes no semantic edits automatically. Compact MCP `read_knowledge` with `kind: "tidy"` previews scope without issuing authorization. See [the complete knowledge policy](docs/knowledge-policy.md).
-
-Exact quotes, review declarations, and hashes do not prove natural-language truth or that an external agent actually read a file. The software checks declared coverage, current evidence, dependency references, scope, and concurrent changes; agents remain responsible for verification and resolving uncertainty.
-
-## Install the beta
-
-Requires Node.js 22+ and npm; source development targets Node 24 through `.nvmrc`. Distribution uses GitHub Releases; this package has not been published to npmjs.com.
-
-Once a version is released, download its `common-ground-knowledge-VERSION.tgz` asset from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install the downloaded file. For example, for `0.3.0-beta.1`:
+Requires Node.js 22+ and npm. Download the `.tgz` package from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install it:
 
 ```sh
-npm install -g ./common-ground-knowledge-0.3.0-beta.1.tgz
-cground --version
-```
-
-Choose the `.tgz` release asset, not GitHub's automatically generated source archives. npm installs the runtime dependencies during installation, so registry access is still required. GitHub hosts Common Ground itself; Node.js remains its runtime.
-
-To build an archive from a clone:
-
-```sh
-nvm use                 # with nvm; run nvm install first if needed
-npm ci
-npm run release:pack
-npm install -g ./release/common-ground-knowledge-0.3.0-beta.1.tgz
-cground --version
-```
-
-No model API key, telemetry, cloud service, or vector database is required. The MCP host launches the local stdio process on demand. The package name is provisional.
-
-## Publish a GitHub release
-
-`npm run release:pack` tests the project, runs the synthetic demo, builds the package and schemas, and writes a `.tgz` archive plus a SHA-256 checksum to the ignored `release/` directory. It does not upload anything.
-
-After committing the release workflow and changes, push a tag that matches `package.json`. For the current version:
-
-```sh
-git tag -a v0.3.0-beta.1 -m "Common Ground 0.3.0-beta.1"
-git push origin v0.3.0-beta.1
-```
-
-The GitHub Actions workflow validates the tag, runs the same packaging checks, tests an isolated archive installation, and creates a release with both assets. Beta versions become prereleases. It uses GitHub's built-in token and needs no npm account or npm publishing token. See [release setup, versioning, and troubleshooting](docs/releases.md).
-
-## Initialize and populate a repository
-
-```sh
-cd /path/to/repository
+npm install -g ./common-ground-knowledge-0.4.0-beta.0.tgz
+cd your-project
 cground init
 ```
 
-`init` prints a short setup summary and a review link. Use `cground init --json` for the full discovery response. Fresh repositories link to the proposed map and identify knowledge.json as the next review target once created; existing repositories link directly to knowledge.json.
+The beta is distributed through GitHub Releases, not npmjs.com. Choose the `.tgz` asset, not GitHub's source archive. npm still needs registry access to install runtime dependencies.
 
-Initialization is the first of two setup stages: `knowledge.json` is created only after the developer approves the responsibility map. Until then, task startup returns `bootstrap-required` with next steps and no task ID; agents continue the main task from source.
+`init` creates repository guidance, MCP configuration, an advisory Git hook, and a local Markdown reference. Ask your agent to review the proposed responsibility map and facts with you. After approval, it populates `.common-ground/knowledge.json`. Initialization alone does not invent or approve facts.
 
-Initialization preserves existing knowledge and instructions. It writes a heuristic proposal to `.common-ground/local/bootstrap.json`; it does not run an LLM or invent facts. Your coding agent refines the map and presents it in plain language. After explicit approval, the agent can run:
-
-```sh
-cground approve .common-ground/local/bootstrap.json --approve
-cground list
-cground chapters PILLAR_ID
-cground seed PILLAR_ID/CHAPTER_ID /path/to/agent-prepared-facts.json --approve
-```
-
-Use the IDs from the approved proposal. Discovery recognizes common web and mobile frameworks (Angular, React, Next.js, Vue/Nuxt, Svelte/SvelteKit, Astro, React Native/Expo, Flutter), native Swift/Xcode projects, Java/Kotlin/Maven/Gradle/Android, Node backends, Python, Go, Rust, .NET, Ruby, and PHP. It also recognizes common workspace and CI layouts. See [the discovery catalog and limits](docs/discovery.md).
-
-Frameworks are evidence for navigation, not automatic pillar boundaries. Signals are grouped by project root and proposed responsibility; React Native's native platform folders stay with the mobile application. The agent must review the proposed boundaries and sampled paths before approval. Scanning is bounded and reports skipped manifests and truncated results; it cannot prove that every subsystem was found. `cground scan` previews candidates without changing knowledge. Re-running `init` on an approved repository preserves its pillars and skips discovery.
-
-Bootstrap and additional-fact admission currently use CLI operations instead of MCP approval tools. An agent with shell access executes them following developer approval; the flag never substitutes for approval. To add approved chapters to an existing pillar, use `cground approve-chapters PILLAR PLAN.json --approve`. For task-time additions, use the deferred proposal/finish/accept workflow above. The older `cground admit PILLAR/CHAPTER FACTS.json --approve` remains a developer-directed operator command; its source-reading and dependent review requirements still apply.
-
-The fact input is an array of records such as:
-
-```json
-{
-  "id": "event-version",
-  "statement": "The Java application declares EVENT_VERSION as v1.",
-  "sourceScope": ["apps/java/src/Application.java"],
-  "dependsOn": [],
-  "evidence": [{
-    "path": "apps/java/src/Application.java",
-    "quote": "public static final String EVENT_VERSION = \"v1\";"
-  }]
-}
-```
-
-Commit `.common-ground/knowledge.json`, `.common-ground/START_HERE.md`, `.common-ground/POLICY.md`, the managed instruction files, `.vscode/mcp.json`, and `.gitignore`. `init` creates or updates a marked ignore block for `.common-ground/local/`; existing entries are preserved. Already-tracked files must be explicitly untracked.
-
-## Local Markdown reference
-
-Open `.common-ground/local/knowledge.md` for a complete human-readable view of the shared registry. It includes a table of contents, every pillar/chapter boundary, every fact, exact evidence quotes with source links, dependency links, chapter revisions, and expandable stored hash metadata. It is not paginated and excludes pending proposals and task-local notes.
-
-`cground init` creates it, and `cground validate` and `cground tidy` refresh it even when targeting only one fact. Successful shared knowledge writes also refresh it, so completed tidy corrections appear immediately. On fresh setup it explains that no approved knowledge exists yet; it never invents facts or presents the bootstrap proposal as approved knowledge.
-
-The existing `.common-ground/local/` ignore rule keeps the export out of normal Git diffs. Treat it as disposable: manual edits are overwritten on refresh. Identical content is not rewritten, and no generated timestamp causes churn. It represents stored knowledge, not a live validation certificate; current source and the shared JSON remain authoritative. The pure MCP tidy preview does not refresh local files.
-
-## Validate and tidy knowledge
+Then try:
 
 ```sh
-cground validate                   # Defaults to all
-cground validate all
-cground validate PILLAR
-cground validate PILLAR/CHAPTER
-cground validate PILLAR/CHAPTER/FACT
-cground tidy all                   # Prepare a full agent-led review
+cground check                 # Check all recorded knowledge
+cground check cicd            # Check one pillar (use your actual ID)
+cground tidy all              # Give your agent a complete cleanup plan
+cground export                # Refresh the local Markdown reference
+cground doctor               # Check repository setup
 ```
 
-Validation leaves shared knowledge unchanged: it checks the registry structure, exact evidence quotes, source scopes, dependency references and freshness. A fact target checks that fact and its transitive upstream dependencies; unrelated sibling facts and reverse dependents are not selected. Unambiguous short fact IDs also work. `all` is reserved for the whole registry; use qualified paths to address a fact named `all`.
+In an MCP-capable agent, you can say: “Check the facts in the CI/CD pillar and freshen them if needed.” The agent finds the pillar, checks its facts, reads source, and submits verified corrections. Common Ground does not run a model internally.
 
-Exit status is 0 when all selected facts pass, or 1 for invalid evidence, drift needing review, unpopulated chapters, an empty registry, or an error. Results use the usual `--limit`/`--cursor` pagination, but `valid` and `summary` cover the entire selection, even when a failure is on a later page. Registry structure and reference integrity are always checked globally. Existing matching local review receipts can acknowledge harmless source drift, but never excuse missing evidence quotes. Validation creates no receipts and does not prove natural-language truth.
-
-`tidy all` creates one local receipt covering every chapter, including disconnected pillars. The agent must read every required chapter and current source before submitting a reviewed transaction. It does not run a model or rewrite knowledge itself. The receipt becomes stale after a shared registry change; request another scope for subsequent transactions. An empty registry produces an empty plan without a receipt. `cground check` remains the original whole-registry freshness check.
-
-## Pre-commit knowledge reminders
-
-`cground init` installs an advisory Git pre-commit hook by default in a Git repository without an existing hook. Each checkout needs initialization. The hook checks **staged** knowledge against **staged** source, including when a developer uses no agent. It reports stale chapters and reminds developers to review staged knowledge changes before making facts available to the team. It never edits facts, prompts for terminal input, or blocks a commit.
+## Help wherever you need it
 
 ```sh
-cground hook mute     # Suppress notifications in this checkout
-cground hook unmute   # Restore notifications
-cground hook check    # Run the advisory staged check directly
-cground hook install  # Install after git init, without refreshing setup
+cground --help
+cground check --help
+cground help tidy
+cground hook --help
+cground task assess -h
+cground --version
 ```
 
-Muting is saved in local Git configuration and survives repeated initialization; the check still runs. Existing pre-commit hooks and `core.hooksPath` configurations are preserved. For Husky or another hook manager, add `cground hook check` to its pre-commit entry point; init reports when this integration is needed. The executable `cground` must be on Git's PATH. If unavailable, the managed hook shows a reminder unless muted and allows the commit.
+Every command supports `--help` and `-h`, with its arguments, options, and an example. Help never executes the command or requires an initialized repository. Options accept both `--root PATH` and `--root=PATH`. Unknown flags, unsupported options, and missing or extra arguments fail with a usage hint.
 
-The check exports the index into a disposable temporary directory, so large repositories incur checkout cost. It checks recorded scopes and dependencies, not every possible semantic effect. Matching local no-op review receipts can acknowledge harmless drift; those receipts are not shared with teammates. Submodule contents are not exported and evidence inside them needs separate review. For a strict working-tree freshness check, use `cground check`; it retains its nonzero exit status when review is needed.
+Use `--root PATH` to select another repository. In terminals, checks return a concise summary. Pipes preserve structured JSON; `--json` requests it explicitly and disables interactive prompts. `init` keeps its short review links unless `--json` is supplied. Diagnostics go to stderr, and MCP stdout stays reserved for the protocol.
 
-## Upgrade a pillar-only beta repository
+Exit codes are `0` for success and `1` for a failed command or knowledge needing attention. Pre-commit hook checks remain advisory and never block a commit.
 
-Schema v2 adds chapters. After installing this version:
+## Check and clean up knowledge
+
+`check` and `validate` are equivalent. They check structure, exact evidence, source changes, and recorded dependencies. Targets can be `all`, a pillar, `pillar/chapter`, `pillar/chapter/fact`, or a unique fact ID. Omitted targets mean `all`.
+
+When knowledge is stale, the result lists affected pillars, chapters, and facts and asks **“Start automatic cleanup?”** An interactive terminal offers `[y/N]`. For scripts or agents:
 
 ```sh
-cground migrate --approve
-cground init
+cground check cicd --cleanup n --json
+cground validate all --cleanup y --json
 ```
 
-Migration preserves every old pillar's facts, scope, source hashes, and revision in an `overview` chapter. It invents no dependencies. A local backup is kept, and repeating migration is a no-op. The initializer refreshes agent instructions to use the new tools. Old pending update proposals must be recreated. See [the record contract](docs/pillar-contract.md).
+Acceptance creates a scoped cleanup plan and `tidyId`. Your agent still has to read all required chapters, source, and documentation, then submit verified corrections and check again. A plan is not a completed repair: the command continues to exit `1` while knowledge needs attention. Unpopulated chapters need approved setup. Matching evidence or hashes cannot prove a natural-language claim is true.
 
-Existing schema-v2 repositories keep their records. Run `cground init` after upgrading to refresh guidance. New update requests require `verification.sourceFiles` and `verification.documentFiles`; recreate old pending proposals. The default MCP surface is now compact. Existing integrations can select `cground serve --profile full` to retain the thirteen original tools.
+`tidy TARGET` can also request cleanup when source has not changed, such as merging duplicates or tightening existing facts. Both CLI and MCP enforce complete reviews and reject conflicting source or knowledge changes. Unchanged facts are not rewritten. New facts and ownership expansion require developer approval.
 
-## Agent tools and CLI
+## Share knowledge, keep generated views local
 
-The default profile exposes six tools:
+Commit `.common-ground/knowledge.json` and the generated repository guidance/configuration with your code. It is one shared JSON registry, organized as pillars → chapters → facts. Each fact has a stable ID, a statement of up to 2,000 characters, exact evidence, source scope, and dependency references. Keep one durable claim per fact; the limit is room for context, not a target.
 
-| MCP tool | Purpose | CLI |
-|---|---|---|
-| `task_context` | Start, assess touched paths, finish with meaningful changes only | `cground task start`, `task assess TASK --touched PATHS`, `task finish TASK` |
-| `read_knowledge` | Bounded indexes, facts/evidence, ownership, graph, review checklists, and drafts | `cground read-knowledge REQUEST.json` |
-| `prepare_patch` | Verify complete reviews; transmit only replacements/removals | `cground prepare-patch PATCH.json` |
-| `commit_update` | Recheck and write the prepared corrections to the working tree | `cground commit PROPOSAL_ID` |
-| `cground` | Discover and execute all framework operations, with structured inputs and approval requirements | All CLI workflows |
-| `propose_facts` | Stage additions locally for end-of-task approval | `cground propose-facts TASK CHAPTER FACTS.json` |
+`.common-ground/local/knowledge.md` is a complete, human-readable view of the stored registry, including evidence, dependencies, revisions, and fingerprints. `init`, checks, tidy, explicit export, and successful knowledge writes refresh it when content changes. The local directory is Git-ignored and also holds disposable task and review state. Draft facts never appear in the shared reference.
 
-`read_knowledge` accepts `kind`, an optional `target` pillar/chapter/fact ID, `taskId`, and pagination options. `kind: "chapter", evidence: true` returns full facts in batches. Use `kind: "review"` for dependency scope and `kind: "checklist"` for evidence and documentation paths. All page cursors must be followed for a complete review.
+The default Git hook checks staged knowledge against staged source and reminds you to review before sharing. It never changes facts. Existing hooks and hook managers are preserved; `init` explains how to add `cground hook check` to their entry point.
 
-The original CLI navigation commands (`start`, `owners`, `graph`, `list`, `chapters`, `read`, `fact`, `search`, `review-plan`, `review-checklist`, `tidy`, `prepare`) remain available. `serve --profile full` exposes the original thirteen MCP tools plus cground for existing integrations. All commands accept `--root PATH`.
+```sh
+cground hook mute             # Suppress reminders in this checkout
+cground hook unmute           # Restore reminders
+```
 
-Publication rejects source changes, conflicting knowledge revisions, unrelated edits, malformed facts, and incomplete dependency reviews. Unchanged reviews write only local validation state. See [the compact workflow and request formats](docs/quiet-workflow.md) and [the record contract](docs/pillar-contract.md).
+## Connect an agent
 
-### Complete MCP workflow coverage
+For VS Code Copilot, `init` merges `.vscode/mcp.json` and a Copilot instruction link while preserving existing guidance and JSONC comments. Ensure `cground` is on VS Code's PATH, start Common Ground through **MCP: List Servers**, and complete the host's trust prompts. Restart an existing server after upgrading.
 
-Both profiles include the `cground` tool. Use `{"operation":"help"}` for the paginated catalog and `{"operation":"help","args":{"operation":"seed"}}` for an operation's exact JSON input schema. Operations accept structured records directly; agents do not need a shell or temporary request files. Setup, migration, chapter approval, seeding, admission, task workflows, navigation, validation, cleanup, hooks, diagnostics, version and Markdown export are available. `serve` starts the transport itself; the host selects the repository root.
+Other MCP clients can launch:
 
-For “check the facts in the CI/CD pillar and freshen them if needed,” the agent resolves its pillar ID, then calls:
+```sh
+cground serve --root /absolute/path/to/repository
+```
+
+Remote SSH and dev-container sessions need the package installed in that environment. This targets agents with tool access, not inline completion or chats without tools. Automated tests cover stdio; VS Code GUI acceptance remains a separate check.
+
+The default profile has six tools:
+
+| Tool | Purpose |
+| --- | --- |
+| `task_context` | Start once, assess touched paths, finish with meaningful changes and pending approvals |
+| `read_knowledge` | Navigate indexes, facts, evidence, dependencies, and review checklists |
+| `prepare_patch` | Prepare changes after complete chapter and source review |
+| `commit_update` | Apply a prepared correction to the Git working tree |
+| `propose_facts` | Queue verified additions locally for developer approval |
+| `cground` | Discover and execute every CLI workflow through structured MCP inputs |
+
+Call `cground` with `{"operation":"help"}` for a paginated catalog, or `{"operation":"help","args":{"operation":"validate"}}` for that operation's exact input schema. For developer-requested cleanup:
 
 ```json
 {"operation":"validate","args":{"target":"cicd","cleanup":true}}
 ```
 
-A check alone uses `cleanup:false` (the default). Stale results list affected pillar, chapter and fact IDs and return “Start automatic cleanup?” When cleanup is already requested by the developer, the agent may proceed; otherwise it presents that question first. `cleanup:true` issues a local `tidyId` for affected chapters and their linked review scope. The agent reads every required chapter and source/documentation, prepares verified corrections, commits the reviewed transaction to the working tree, and validates again. This does not launch an internal model or declare facts repaired merely because a plan was issued.
+Setup, migration, admission, navigation, cleanup, hooks, diagnostics, export, and task workflows are available without a shell. Approval operations require `approved:true` after actual developer approval of the proposed content. Flags declare direction; they do not grant permission. Host tool approval settings still apply.
 
-CLI equivalents are `cground check cicd` or `cground validate cicd`, with an interactive `[y/N]` prompt when stale. Use `--cleanup y` or `--cleanup n` for scripts and agents. Piped input and `--json` never wait for keyboard input. Results remain JSON on stdout; prompts and summaries go to stderr. Exit status remains 1 while knowledge is stale, invalid or unpopulated, including after accepting a cleanup plan. Checks and validation now share scoped, per-fact results; `check` no longer returns the legacy chapter-status array. Unpopulated chapters require approved setup, not automatic fact generation.
+`serve --profile full` preserves the thirteen original tools plus `cground` for existing integrations. Both profiles use the same framework operations. See [the task workflow](docs/quiet-workflow.md) for request formats and [the record contract](docs/pillar-contract.md) for review and publication rules.
 
-Admission operations require `approved:true`, declaring the developer's explicit approval of the exact proposed content. This is not an authorization token. Existing whole-chapter reviews and source/revision conflict checks still apply. Agent hosts control tool permissions. MCP-capable agents can use this protocol; a chat without tool access cannot invoke it by itself. Native VS Code GUI acceptance remains unverified.
+## Adopt and extend
 
-## Keeping context and interruptions small
+Shape pillars and chapters around your repository. Add team-specific guidance outside the managed instruction blocks. Build integrations with the CLI, MCP, and [published JSON schemas](schemas). Custom discovery rules, validators, fields, or storage currently require TypeScript changes; the beta has no plugin loader or stable public SDK.
 
-- Six default tool definitions, a short always-loaded instruction block, and detailed policy loaded before edits.
-- Direct path routing; paginated reads instead of whole-pillar dumps. Chapter evidence batches avoid one call per fact. Pages default to 10 records, at most 20, with a 12,000-character soft budget for full-fact batches. A single oversized record is returned intact to preserve evidence and dependencies.
-- Task-local reuse returns a short `unchanged` reference for identical context. Live source/dependency changes invalidate it; use `refresh: true` after context loss. This never substitutes for source reading.
-- Compact JSON tool responses and patch requests that omit unchanged facts. No count limit on stored facts.
-- New facts wait in local drafts; routine checks and no-op outcomes do not need narration.
+The implementation uses three direct runtime dependencies: the MCP SDK, Zod, and a JSONC parser. Storage is local JSON with bounded discovery and paginated reads. There is no background watcher or service. The engine still loads the registry and hashes source internally; pagination reduces transferred context, not all computation. Huge registries and dense dependency graphs need performance evaluation before production claims.
 
-Run `npm run measure:context` for reproducible byte measurements of tool definitions, instructions, a correction in a 300-fact chapter, and repeated retrieval. These are context-size proxies, **not model-specific token counts or billing guarantees**. Full chapter review still costs context when a knowledge edit is justified. Large chapters and dense dependencies remain expensive; choose coherent chapter boundaries during approved setup.
-
-Common Ground does not run an LLM or a background watcher. The calling agent follows these instructions, and the MCP host controls tool permission prompts. A host may require approval for local writes; Common Ground does not bypass those settings.
-
-## VS Code Copilot
-
-`init` writes the Start Here guide and detailed policy and merges a managed `AGENTS.md` section, a Copilot instruction link, and `.vscode/mcp.json`, preserving existing guidance and JSONC comments.
-
-1. Ensure `cground` is on VS Code's PATH; restart VS Code after installing if needed.
-2. Open the repository and use **MCP: List Servers** to start Common Ground, completing normal host trust prompts.
-3. In Copilot agent chat, check that the six default tools are available.
-4. Ask the agent where to start with a build failure, then navigate its suggested pillar and chapters and verify the facts in source.
-
-For other MCP clients, launch `cground serve --root /absolute/repository/path`. Remote SSH or dev-container sessions need the package installed in that environment. This targets agent chat, not inline completion. Automated tests cover the real stdio protocol; manual VS Code GUI acceptance remains a separate check.
-
-## Demo and onboarding
+## Develop and upgrade
 
 ```sh
-npm run demo
-```
-
-The synthetic monorepo includes Azure pipeline, Nx/npm, UI, and Java contracts, with a verified CI → workspace tooling dependency. Its UI pillar indexes Search and Search Results chapters; the result-validation fact depends on the search-threshold fact. The demo changes Search, reviews both, and publishes only the invalidated chapter. These fixtures are not a runnable full application stack. See [manual demo steps](docs/demo.md).
-
-Common Ground uses its own registry. Ask your agent to list its pillars and chapters, then explain the relevant facts with evidence. Current source remains authoritative.
-
-## Development and limits
-
-```sh
-nvm use
-npm install
+nvm use                     # Node 24 for source development
+npm ci
 npm test
-npm run schema
+npm run demo                # Synthetic repository only
+npm run release:pack        # Tested archive + checksum in release/
+npm install -g ./release/common-ground-knowledge-0.4.0-beta.0.tgz
 ```
 
-TypeScript is in `src/`; tests cover pagination, migration, dependency reviews, no-op behavior, uncapped facts, invalid admissions, conflicts, preservation of configuration, and real MCP communication. Source discovery and fingerprinting remain bounded; the registry is still one file, and dense dependency graphs can require broad reviews. See [architecture and remaining gaps](docs/architecture.md).
+After upgrading, run `cground init` to refresh guidance, then restart the MCP server. Existing schema-v2 records are preserved. For a schema-v1 pillar-only registry, first review and run `cground migrate --approve`. Read the [release guide](docs/releases.md) for publishing and migration details.
 
-MIT licensed. All demo fixtures are synthetic; no employer code or internal project knowledge is included.
+More: [architecture and limits](docs/architecture.md), [complete knowledge policy](docs/knowledge-policy.md), [synthetic demo](docs/demo.md), [discovery](docs/discovery.md), [0.4.0 audit](docs/audit-0.4.0.md). Run `npm run measure:context` for reproducible context-size comparisons; these are byte measurements, not billing guarantees.
 
-## Contributors
-
-- **OpenAI Codex** — AI-assisted architecture, implementation, tests, and documentation, guided and reviewed by the project developer.
+Common Ground is MIT licensed.

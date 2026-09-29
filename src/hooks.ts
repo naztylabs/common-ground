@@ -54,6 +54,8 @@ export async function checkHook(store: Store): Promise<string> {
   let temporary: string | undefined;
   try {
     try { muted = (await git(store.root, ['config', '--local', '--get', 'commonGround.hookNotifications'])).trim() === 'false'; } catch {}
+    // Muted notifications have no observable result; avoid exporting and hashing the index.
+    if (muted) return '';
     const root = (await git(store.root, ['rev-parse', '--show-toplevel'])).trim();
     const staged = (await git(root, ['diff', '--cached', '--name-only', '-z'])).split('\0');
     if (!staged.some(Boolean)) return '';
