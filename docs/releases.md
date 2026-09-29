@@ -6,6 +6,11 @@ Consumers still need Node.js 22+ and npm. The archive contains compiled JavaScri
 
 ## 0.3.0-beta.1
 
+- A complete Markdown reference lives in ignored `.common-ground/local/knowledge.md`, created on init and refreshed by validate, tidy, and shared knowledge updates only when content changes.
+
+- `cground validate` checks all knowledge by default, or a selected pillar, chapter, or fact. It preserves shared knowledge, refreshes the local Markdown view, and returns nonzero for invalid, stale, or unpopulated knowledge.
+- `cground tidy all` creates a review scope covering the entire registry without changing facts.
+
 - Fact statements allow up to 2,000 characters for conditions, behavior, and consequences, retaining exact evidence requirements. Schema v2 records remain compatible with this version; older clients with the 320-character limit cannot read longer statements.
 - Initialization installs advisory pre-commit checks by default when no existing hook manager owns the entry point. `cground hook mute` and `unmute` control notifications locally without blocking commits or changing facts.
 - Init output is a short summary and review link; `--json` preserves the full response for integrations.
@@ -89,3 +94,5 @@ Downloading first and installing the local file also avoids npm version differen
 - [npm install](https://docs.npmjs.com/cli/v11/commands/npm-install)
 - [GitHub CLI release creation](https://cli.github.com/manual/gh_release_create)
 - [GitHub Actions token permissions](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication)
+
+Beta 0.3.0 also exposes every CLI workflow through the discoverable `cground` MCP tool in both profiles. Scoped check/validate report affected IDs and offer developer-requested cleanup. The check JSON format now matches validate instead of returning a chapter-status array; automation should read `valid`, `summary`, and `affected`. Cleanup acceptance issues a review plan, not completed fact changes.

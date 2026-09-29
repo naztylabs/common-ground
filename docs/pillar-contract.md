@@ -59,15 +59,21 @@ Notes supplement code reading. Verification requires the agent to open source no
 
 The checklist also accepts no chapter IDs plus touched paths, so README review can proceed when no cached fact is affected. Documentation verification remains mandatory for no-op transactions. A logical chapter is the note to skim in full; sharing one physical JSON registry does not require loading every unrelated pillar into context.
 
+## Read-only validation
+
+`cground validate [TARGET]` defaults to `all` and accepts the same pillar, chapter and fact selectors as tidy. It checks schema and reference integrity globally, then checks exact evidence, source scope hashes and upstream dependency freshness for the selected facts. Fact validation does not expand to unrelated sibling facts or reverse dependents. Matching local review receipts can acknowledge unchanged assertions after source drift, but evidence quotes must still exist. By default no shared records or review receipts are written; CLI and MCP checks refresh the ignored Markdown export. Stale results list affected pillars, chapters and facts. Accepting cleanup with --cleanup y (CLI) or cleanup:true (MCP) creates a scoped local tidyId, and the calling agent must then perform the complete source review and submit corrections.
+
+The global summary and exit status cover the whole selection even when result rows are paginated. Invalid evidence, unresolved drift, unpopulated chapters and an empty registry yield exit 1. A successful result establishes mechanical consistency, not semantic truth; code and documentation review remain necessary. Cursors reject changes to the registry or validation results.
+
 ## Developer-requested cleanup
 
-`cground tidy PILLAR`, `cground tidy PILLAR/CHAPTER`, or `cground tidy PILLAR/CHAPTER/FACT` generates a plan and local receipt without changing shared records. An unqualified fact ID works only when unambiguous. Fact cleanup expands to its whole chapter and linked chapters; pillar cleanup includes all its chapters and their dependencies/dependents. Follow pagination to see the complete plan. Duplicate hints are lexical suggestions requiring source review, never automatic deletions.
+`cground tidy all`, `cground tidy PILLAR`, `cground tidy PILLAR/CHAPTER`, or `cground tidy PILLAR/CHAPTER/FACT` generates a plan and local receipt without changing shared records. An unqualified fact ID works only when unambiguous. The reserved target `all` includes every chapter, including disconnected pillars. An empty registry returns no receipt. Fact cleanup expands to its whole chapter and linked chapters; pillar cleanup includes all its chapters and their dependencies/dependents. Follow pagination to see the complete plan. Duplicate hints are lexical suggestions requiring source review, never automatic deletions.
 
-The agent performs the work, then submits a complete verified transaction with the `tidyId` and explicit maintenance reasons. The receipt is bound to the registry revision and scope; any shared change requires a new tidy request. MCP `tidy_plan` previews the plan without issuing a receipt. CLI receipts and approval flags record workflow intent, not identity or proof of human authorization against an agent with filesystem access.
+The agent performs the work, then submits a complete verified transaction with the `tidyId` and explicit maintenance reasons. The receipt is bound to the registry revision and scope; any shared change requires a new tidy request. MCP `tidy_plan` previews the plan without issuing a receipt; the cground MCP tidy operation issues the same scoped receipt as the CLI. CLI receipts and approval flags record workflow intent, not identity or proof of human authorization against an agent with filesystem access.
 
 ## Developer-directed operations
 
-Agents author the records and can execute approved CLI operations. `approve`, `approve-chapters`, `seed`, `admit`, `accept-facts`, and `migrate` require explicit developer direction and are not MCP tools. An approval flag is a workflow convention, not an identity boundary against a process with filesystem access.
+Agents author the records and can execute approved CLI operations. `approve`, `approve-chapters`, `seed`, `admit`, `accept-facts`, and `migrate` require explicit developer direction and are also exposed as cground MCP operations with approved:true. An approval flag is a workflow convention, not an identity boundary against a process with filesystem access.
 
 `admit` validates the full resulting chapter and all its evidence. Dependent chapters detect changed dependency fact fingerprints; use `review_plan` afterward. Fact dependency changes caused by authorized work can be included in a reviewed transaction; the required reviews cover both the old and new dependency graphs. Moving chapter ownership or moving existing facts between chapters does not yet have a dedicated operator command.
 

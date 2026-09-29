@@ -32,7 +32,7 @@ test('fresh CLI onboarding explains approval, creates no task until approved, th
   assert.equal(start.state,'bootstrap-required');
   assert.equal(start.taskId,undefined);
   assert.equal(start.proposalPath,'.common-ground/local/bootstrap.json');
-  assert.deepEqual(await fs.readdir(store.file('local')),['bootstrap.json']);
+  assert.deepEqual(await fs.readdir(store.file('local')),['bootstrap.json','knowledge.md']);
   assert.equal(await fs.readFile(store.file('local/bootstrap.json'),'utf8'),before);
   for(const file of ['AGENTS.md','.common-ground/START_HERE.md']) {
     const guidance=await fs.readFile(path.join(root,file),'utf8');

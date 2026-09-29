@@ -126,16 +126,16 @@ test('evidence-heavy chapters paginate by payload as well as count, without drop
   do{const response=await readKnowledge(store,{kind:'chapter',target:'app/overview',evidence:true,limit:20,cursor});assert.ok(JSON.stringify(response).length<14000);seen.push(...response.facts.items.map(f=>f.id));cursor=response.facts.nextCursor??undefined;}while(cursor);
   assert.equal(seen.length,7);assert.equal(new Set(seen).size,7);
 });
-test('compact MCP startup is smaller and exposes no admission tool',async t=>{
+test('compact MCP startup stays smaller with discoverable operations',async t=>{
   const {store}=await fixture(t);const manifests={};
   for(const profile of ['compact','full']){
     const [clientTransport,serverTransport]=InMemoryTransport.createLinkedPair();const server=createServer(store,profile);await server.connect(serverTransport);
     const client=new Client({name:'context-budget',version:'1'});await client.connect(clientTransport);manifests[profile]=await client.listTools();await client.close();await server.close();
   }
-  assert.equal(manifests.compact.tools.length,5);assert.equal(manifests.full.tools.length,13);
+  assert.equal(manifests.compact.tools.length,6);assert.equal(manifests.full.tools.length,14);
   assert.ok(JSON.stringify(manifests.compact).length<JSON.stringify(manifests.full).length*0.8);
-  assert.ok(Buffer.byteLength(rules)<1600);assert.ok(!manifests.compact.tools.some(t=>/accept|admit|approve|seed/.test(t.name)));
-  assert.ok(manifests.compact.tools.filter(t=>t.name!=='commit_update').every(t=>t.annotations.destructiveHint===false));
+  assert.ok(Buffer.byteLength(rules)<1600);assert.ok(manifests.compact.tools.some(t=>t.name==='cground'));
+  assert.ok(manifests.compact.tools.filter(t=>!['commit_update','cground'].includes(t.name)).every(t=>t.annotations.destructiveHint===false));
 });
 test('default CLI stdio profile runs a quiet end-to-end task',async t=>{
   const {root}=await fixture(t);const client=new Client({name:'workflow-smoke',version:'1'});
