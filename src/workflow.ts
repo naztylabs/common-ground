@@ -152,8 +152,14 @@ export class Workflow {
       });
       const entries=[...changes,...additions,
         ...task.pending.map(proposalId=>({kind:'uncommitted-review',proposalId}))];
-      return {notification:task.pending.length||additions.some(a=>a.stale)||changes.some(c=>c.changedSinceUpdate)?'attention':additions.length?'approval-required':entries.length?'summary':'none',
-        ...page(entries,cursor,limit),...(entries.length?{reviewPath:'.common-ground/knowledge.json'}:{})};
+      const attention=task.pending.length||additions.some(a=>a.stale)||changes.some(c=>c.changedSinceUpdate);
+      const reviewPrompt=attention
+        ? 'Resolve pending reviews or changed evidence before sharing these facts with the team.'
+        : additions.length
+          ? 'Ready to make the following facts available to the team? Review the proposed facts and evidence before approving admission.'
+          : 'Review the corrected facts in knowledge.json before committing them for the team.';
+      return {notification:attention?'attention':additions.length?'approval-required':entries.length?'summary':'none',
+        ...page(entries,cursor,limit),...(entries.length?{reviewPath:'.common-ground/knowledge.json',reviewPrompt}:{})};
     });
   }
   async proposals(id:string,cursor?:string,limit?:number) {

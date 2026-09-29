@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { checkHook, hookNotifications, installHook } from './hooks.js';
 import { Store } from './store.js';
 import { initialize, discover } from './init.js';
 import { search, serve, listPillars, listChapters, readChapter, readFact, reviewChecklist, readKnowledge } from './server.js';
@@ -15,7 +16,25 @@ async function main() {
  const [command,...rest]=args; const store=new Store(root); let output:unknown;
  const json=async(file:string)=>JSON.parse(await fs.readFile(path.resolve(file),'utf8'));
  switch(command) {
- case 'init': output=await initialize(store);break;
+ case 'init': {
+   const result=await initialize(store);
+   if(rest.includes('--json')) {output=result;break;}
+   const link=(file:string)=>`[${file}](${path.resolve(store.root,file)})`;
+   output=['Common Ground initialized.',result.hook,
+     'existingRegistry' in result
+       ? `Review the knowledge before sharing: ${link('.common-ground/knowledge.json')}`
+       : `Review the proposed map with your agent: ${link('.common-ground/local/bootstrap.json')}\nAfter approval and population, review ${link('.common-ground/knowledge.json')} before sharing (not created yet).`,
+   ].join('\n');break;
+ }
+ case 'hook': {
+   switch(rest[0]) {
+     case 'check': {const message=await checkHook(store);if(message)console.error(message);return;}
+     case 'mute': output=await hookNotifications(store,false);break;
+     case 'unmute': output=await hookNotifications(store,true);break;
+     case 'install': output=await installHook(store);break;
+     default: throw new Error('Use cground hook check, install, mute, or unmute.');
+   }break;
+ }
  case 'scan': output=await discover(store);break;
  case 'approve': if(!approved)throw new Error('Developer approval required: inspect the proposal, then pass --approve.');output=await store.approveDefinitions((await json(rest[0])).pillars,standalone);break;
  case 'migrate': if(!approved)throw new Error('Developer approval required for migration: --approve.');output=await store.migrate();break;
@@ -50,7 +69,7 @@ async function main() {
  case 'check': output=await Promise.all(store.chapters(await store.read()).map(c=>store.status(c.key)));if((output as any[]).some(s=>s.status!=='evidence-unchanged'))process.exitCode=1;break;
  case 'doctor': {const checks:Record<string,unknown>={node:process.version,root:store.root};for(const file of ['AGENTS.md','.github/copilot-instructions.md','.vscode/mcp.json','.common-ground/knowledge.json']){try{await store.safe(file);checks[file]='present';}catch{checks[file]='missing';process.exitCode=1;}}try{checks.pillars=(await store.read()).pillars.length;}catch(e:any){checks.registryError=e.message;process.exitCode=1;}output=checks;break;}
  case '--version': output=version;break;
- default: console.log(`Common Ground — an open-source framework for shared codebase knowledge\n\ncground init [--root PATH]\ncground scan\ncground start [SIGNAL] [--path PATH]\ncground owners [--path PATH] [--signal TEXT]\ncground graph [PILLAR]\ncground tidy PILLAR_OR_CHAPTER_OR_FACT\ncground review-checklist [CHAPTER ...] [--touched PATH1,PATH2]\ncground approve PLAN.json --approve [--standalone-reason TEXT]\ncground migrate --approve\ncground approve-chapters PILLAR PLAN.json --approve\ncground seed PILLAR/CHAPTER FACTS.json --approve\ncground admit PILLAR/CHAPTER NEW_FACTS.json --approve\ncground list | chapters PILLAR | read PILLAR/CHAPTER | fact PILLAR/CHAPTER FACT\ncground search QUERY | review-plan PILLAR/CHAPTER | check | doctor\nUse --cursor TOKEN and --limit 1..20 for paginated reads.\ncground prepare UPDATE.json | commit PROPOSAL_ID\ncground task start | assess TASK_ID --touched PATH1,PATH2 | finish TASK_ID\ncground read-knowledge REQUEST.json | prepare-patch PATCH.json\ncground propose-facts TASK_ID CHAPTER FACTS.json\ncground drop-facts TASK_ID FACT_KEY...\ncground accept-facts TASK_ID REVIEW.json --approve\ncground serve [--profile compact|full]\n\nApproval commands are developer-directed, not autonomous agent operations.\nAll commands accept --root PATH. Node 22+ required.`);if(command&&command!=='--help')process.exitCode=1;return;
+ default: console.log(`Common Ground — an open-source framework for shared codebase knowledge\n\ncground init [--root PATH] [--json]\ncground hook check | install | mute | unmute\ncground scan\ncground start [SIGNAL] [--path PATH]\ncground owners [--path PATH] [--signal TEXT]\ncground graph [PILLAR]\ncground tidy PILLAR_OR_CHAPTER_OR_FACT\ncground review-checklist [CHAPTER ...] [--touched PATH1,PATH2]\ncground approve PLAN.json --approve [--standalone-reason TEXT]\ncground migrate --approve\ncground approve-chapters PILLAR PLAN.json --approve\ncground seed PILLAR/CHAPTER FACTS.json --approve\ncground admit PILLAR/CHAPTER NEW_FACTS.json --approve\ncground list | chapters PILLAR | read PILLAR/CHAPTER | fact PILLAR/CHAPTER FACT\ncground search QUERY | review-plan PILLAR/CHAPTER | check | doctor\nUse --cursor TOKEN and --limit 1..20 for paginated reads.\ncground prepare UPDATE.json | commit PROPOSAL_ID\ncground task start | assess TASK_ID --touched PATH1,PATH2 | finish TASK_ID\ncground read-knowledge REQUEST.json | prepare-patch PATCH.json\ncground propose-facts TASK_ID CHAPTER FACTS.json\ncground drop-facts TASK_ID FACT_KEY...\ncground accept-facts TASK_ID REVIEW.json --approve\ncground serve [--profile compact|full]\n\nApproval commands are developer-directed, not autonomous agent operations.\nAll commands accept --root PATH. Node 22+ required.`);if(command&&command!=='--help')process.exitCode=1;return;
  }
  console.log(typeof output==='string'?output:JSON.stringify(output,null,2));
 }

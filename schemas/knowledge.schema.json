@@ -73,7 +73,7 @@
                           "statement": {
                             "type": "string",
                             "minLength": 8,
-                            "maxLength": 320
+                            "maxLength": 2000
                           },
                           "evidence": {
                             "type": "array",

@@ -95,7 +95,7 @@ test('new facts stay local, cannot be accepted mid-task, and require a complete 
   assert.equal(await fs.readFile(store.file('knowledge.json'),'utf8'),before);
   await assert.rejects(()=>flow.accept(taskId,{reviews:[],verification:{sourceFiles:[],documentFiles:[]}}));
   await assert.rejects(()=>flow.admissionPlan(taskId),/Finish/);
-  const finish=await flow.finish(taskId);assert.equal(finish.notification,'approval-required');assert.equal(finish.total,2);
+  const finish=await flow.finish(taskId);assert.equal(finish.notification,'approval-required');assert.match(finish.reviewPrompt,/Ready to make the following facts available to the team/);assert.equal(finish.total,2);
   const review=await approval(flow,taskId);await assert.rejects(()=>flow.accept(taskId,{...review,verification:{sourceFiles:[],documentFiles:[]}}),/verification required/);
   assert.equal((await flow.accept(taskId,review)).admitted,2);assert.equal(store.chapter(await store.read(),'app/overview').facts.length,3);
 });

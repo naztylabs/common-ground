@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parse, modify, applyEdits, type ParseError } from 'jsonc-parser';
 import { Store } from './store.js';
+import { installHook } from './hooks.js';
 import { discover } from './discovery.js';
 export { discover } from './discovery.js';
 import { rules, startGuide, policy, bootstrapNext } from './guidance.js';
@@ -37,5 +38,6 @@ export async function initialize(store: Store) {
   if (configText !== nextConfig) await fs.writeFile(configFile,nextConfig);
   const proposal = exists ? { existingRegistry:true, message:'Existing pillars preserved. No new discovery or pillar creation.' } : await discover(store);
   if (!exists) await store.atomic('local/bootstrap.json',proposal);
-  return exists ? proposal : { ...proposal, state:'bootstrap-required', next:bootstrapNext };
+  const hook = await installHook(store);
+  return exists ? {...proposal, hook} : { ...proposal, state:'bootstrap-required', next:bootstrapNext, hook };
 }

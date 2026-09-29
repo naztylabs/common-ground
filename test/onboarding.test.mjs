@@ -22,7 +22,7 @@ const cli=(root,...args)=>JSON.parse(execFileSync(process.execPath,[path.resolve
 
 test('fresh CLI onboarding explains approval, creates no task until approved, then starts normally',async t=>{
   const {root,store}=await fixture(t);
-  const init=cli(root,'init');
+  const init=cli(root,'init','--json');
   assert.equal(init.state,'bootstrap-required');
   assert.match(init.next,/Only after approval/);
   assert.match(init.next,/cground approve .common-ground\/local\/bootstrap.json --approve/);
@@ -43,7 +43,7 @@ test('fresh CLI onboarding explains approval, creates no task until approved, th
   await assert.rejects(()=>fs.access(store.file('knowledge.json')),{code:'ENOENT'});
   cli(root,'approve',store.file('local/bootstrap.json'),'--approve');
   const approved=await fs.readFile(store.file('knowledge.json'),'utf8');
-  assert.equal(cli(root,'init').existingRegistry,true);
+  assert.equal(cli(root,'init','--json').existingRegistry,true);
   assert.equal(await fs.readFile(store.file('knowledge.json'),'utf8'),approved);
   const ready=cli(root,'task','start');
   assert.ok(ready.taskId);

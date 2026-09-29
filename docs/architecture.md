@@ -7,6 +7,7 @@ The supported customization surface is repository definitions and supplemental g
 - `src/model.ts`: strict schema v2 pillar, chapter, fact, and multi-chapter review records; schema v1 migration input.
 - `src/store.ts`: safe paths, evidence and ownership checks, dependency traversal, freshness, migration, and atomic review transactions.
 - `src/workflow.ts`: task-local context reuse, compact patches, deferred fact proposals, and reviewed batch admission.
+- `src/hooks.ts`: default advisory Git hook installation, staged-source checks, and checkout-local notification preferences.
 - `src/init.ts`: managed repository instructions/MCP configuration and bootstrap orchestration.
 - `src/discovery.ts`: bounded static manifest/source-path discovery, technology signals and proposed project ownership.
 - `src/server.ts`: five default stdio MCP tools (thirteen in the compatibility profile), paginated navigation, evidence retrieval, and Unicode-aware keyword search.
@@ -20,7 +21,7 @@ The supported customization surface is repository definitions and supplemental g
 
 Storage has no fixed fact-count ceiling. Pillar and chapter indexes and chapter fact reads are paginated (10 by default, up to 20 per response). The compact profile can batch complete facts with evidence, using a 12,000-character soft page budget (a single oversized record stays intact). The full profile also supports individual fact reads. Keyword search returns at most 20 summaries. Pagination rejects changed index/fact content. A full chapter review must traverse all its fact pages.
 
-The current storage engine still parses the full registry internally, and source hashing is synchronous work per tool request. The beta has no database index, background watcher, vector search, or incremental validator. Response pagination limits agent context, not internal compute. Very large knowledge stores need performance evaluation and likely indexed/per-chapter storage before a production claim.
+The current storage engine still parses the full registry internally, and source hashing is synchronous work per tool request. The beta has no database index, background watcher, vector search, or incremental validator. The pre-commit hook invokes an advisory check against a temporary export of the Git index; it never rewrites knowledge or blocks commits. Existing hook managers require adding cground hook check to their entry point. Response pagination limits agent context, not internal compute. Very large knowledge stores need performance evaluation and likely indexed/per-chapter storage before a production claim.
 
 Dependency reviews start from selected fact IDs (or all facts in a chapter), traverse fact dependencies and reverse dependents transitively, and group the result into chapter reviews. Every linked chapter must be reviewed, but only changed facts and chapters are rewritten. Explicit maintenance can correct an existing false claim, merge duplicates, remove superseded content, or tighten narrative without requiring source drift. Routine maintenance is confined to affected chapters; developer-requested tidy receipts authorize a bounded cleanup scope. A dense graph can still produce expensive reviews. Cross-pillar relationships are supported; missing undeclared dependencies cannot be inferred reliably. Shared chapter membership alone does not propagate dependency impact.
 
