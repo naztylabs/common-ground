@@ -37,7 +37,7 @@ test('init installs an executable advisory hook by default, idempotently',async 
   assert.match(before,/cground hook check/);assert.ok((await fs.stat(hook)).mode & 0o111);
   await initialize(store);assert.equal(await fs.readFile(hook,'utf8'),before);
   const result=execFileSync(process.execPath,[cli,'init','--root',root],{encoding:'utf8'});
-  assert.match(result,/Review the knowledge before sharing/);assert.match(result,/\[.common-ground\/knowledge.json\]/);
+  assert.match(result,/Ask your agent to summarize/);assert.match(result,/cground review/);assert.doesNotMatch(result,/\[.common-ground\/knowledge.json\]/);
   assert.ok(result.length<700);assert.doesNotMatch(result,/"pillars"/);
 });
 
@@ -77,10 +77,10 @@ test('existing hooks and custom hook managers are preserved with integration gui
   assert.equal(git(root,'config','--get','core.hooksPath').trim(),'.husky/_');
 });
 
-test('fresh init points to the proposal and does not pretend knowledge already exists',async t=>{
+test('fresh init directs agent-led approval and does not pretend knowledge already exists',async t=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'cg-init-output-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
   const output=execFileSync(process.execPath,[cli,'init','--root',root],{encoding:'utf8'});
-  assert.match(output,/bootstrap.json/);assert.match(output,/knowledge.json/);assert.match(output,/not created yet/);
+  assert.match(output,/agent to summarize the proposed responsibility map/);assert.doesNotMatch(output,/\[.common-ground\/knowledge.json\]/);assert.match(output,/then writes the shared knowledge/);
   assert.ok(output.length<800);await assert.rejects(fs.access(path.join(root,'.common-ground/knowledge.json')));
 });
 

@@ -11,7 +11,7 @@ No model API key, telemetry, cloud service, or vector database is required. Code
 Requires Node.js 22+ and npm. Download the `.tgz` package from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install it:
 
 ```sh
-npm install -g ./common-ground-knowledge-0.4.0-beta.0.tgz
+npm install -g ./common-ground-knowledge-0.4.1-beta.0.tgz
 cd your-project
 cground init
 ```
@@ -23,6 +23,7 @@ The beta is distributed through GitHub Releases, not npmjs.com. Choose the `.tgz
 Then try:
 
 ```sh
+cground review                # Ask your agent to explain knowledge changes
 cground check                 # Check all recorded knowledge
 cground check cicd            # Check one pillar (use your actual ID)
 cground tidy all              # Give your agent a complete cleanup plan
@@ -45,7 +46,7 @@ cground --version
 
 Every command supports `--help` and `-h`, with its arguments, options, and an example. Help never executes the command or requires an initialized repository. Options accept both `--root PATH` and `--root=PATH`. Unknown flags, unsupported options, and missing or extra arguments fail with a usage hint.
 
-Use `--root PATH` to select another repository. In terminals, checks return a concise summary. Pipes preserve structured JSON; `--json` requests it explicitly and disables interactive prompts. `init` keeps its short review links unless `--json` is supplied. Diagnostics go to stderr, and MCP stdout stays reserved for the protocol.
+Use `--root PATH` to select another repository. In terminals, checks return a concise summary. Pipes preserve structured JSON; `--json` requests it explicitly and disables interactive prompts. `init` keeps its short agent handoff and Markdown link; `review` prints readable text by default. Use `--json` for structured output from either command. Diagnostics go to stderr, and MCP stdout stays reserved for the protocol.
 
 Exit codes are `0` for success and `1` for a failed command or knowledge needing attention. Pre-commit hook checks remain advisory and never block a commit.
 
@@ -63,6 +64,22 @@ cground validate all --cleanup y --json
 Acceptance creates a scoped cleanup plan and `tidyId`. Your agent still has to read all required chapters, source, and documentation, then submit verified corrections and check again. A plan is not a completed repair: the command continues to exit `1` while knowledge needs attention. Unpopulated chapters need approved setup. Matching evidence or hashes cannot prove a natural-language claim is true.
 
 `tidy TARGET` can also request cleanup when source has not changed, such as merging duplicates or tightening existing facts. Both CLI and MCP enforce complete reviews and reject conflicting source or knowledge changes. Unchanged facts are not rewritten. New facts and ownership expansion require developer approval.
+
+## Review with your agent, not the JSON file
+
+The developer reviews a short explanation in chat. The agent reads and verifies source, then presents **what changed, why, evidence links, and whether to keep or approve it**. Verified corrections are applied to the working tree and summarized afterward. New facts, chapters, pillars and ownership expansion still need explicit approval of the plain-language proposal. Developers do not need to open or edit `knowledge.json`.
+
+`task_context finish` supplies compact before/after details and recommendations for that task. Unchanged facts and fingerprint/revision noise are excluded. An evidence-only change is identified even when the statement stays the same. Any uncertainty or later drift is flagged for another review; mechanical validation alone is not proof of truth.
+
+```sh
+cground review                     # Meaningful changes against Git HEAD
+cground review cicd                 # Only this pillar's changes
+cground review --staged             # The knowledge in the proposed commit
+cground review --evidence           # Include exact changed quotes
+cground review --json               # Structured delta for an agent
+```
+
+The equivalent MCP call is `{"operation":"review","args":{"target":"cicd"}}`. Review is read-only, paginated, and covers pillars, chapters and facts. It cannot know why an arbitrary Git change was made or whether it was approved; the agent must verify and explain that. Full source/chapter review is still required before publishing corrections. Initial pillar/chapter proposals are summarized from the agent's proposed map before approval.
 
 ## Share knowledge, keep generated views local
 
@@ -124,7 +141,7 @@ npm ci
 npm test
 npm run demo                # Synthetic repository only
 npm run release:pack        # Tested archive + checksum in release/
-npm install -g ./release/common-ground-knowledge-0.4.0-beta.0.tgz
+npm install -g ./release/common-ground-knowledge-0.4.1-beta.0.tgz
 ```
 
 After upgrading, run `cground init` to refresh guidance, then restart the MCP server. Existing schema-v2 records are preserved. For a schema-v1 pillar-only registry, first review and run `cground migrate --approve`. Read the [release guide](docs/releases.md) for publishing and migration details.

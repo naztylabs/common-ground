@@ -1,3 +1,4 @@
+import { factReview, type FactChange } from './review.js';
 import { promises as fs } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -23,10 +24,10 @@ export const Admission = z.object({reviews:z.array(revisionReview).min(1), verif
 type Draft = {chapterId:string; fact:z.infer<typeof Fact>; fingerprint:string};
 type Task = {
   phase:'active'|'awaiting-approval'; paths:string[]; cache:Record<string,string>;
-  changes:Record<string,string>; pending:string[]; drafts:Draft[];
+  changes:Record<string,string>; changeDetails?:Record<string,FactChange>; pending:string[]; drafts:Draft[];
 };
 
-/** Ignored, task-scoped bookkeeping. No prompt text, source copies, or model calls. */
+/** Ignored, task-scoped bookkeeping. No prompt history or model calls; only changed fact records and task metadata. */
 export class Workflow {
   constructor(readonly store:Store) {}
   name(id:string) { return `local/task-${z.string().uuid().parse(id)}.json`; }
@@ -138,7 +139,7 @@ export class Workflow {
     const states=[];
     for(const draft of task.drafts){let stale=false;
       try{stale=draft.fingerprint!==await this.draftFingerprint(registry,draft.chapterId,draft.fact);}catch{stale=true;}
-      states.push({kind:'new-fact',factId:`${draft.chapterId}/${draft.fact.id}`,statement:draft.fact.statement,stale});
+      states.push({kind:'new-fact',factId:`${draft.chapterId}/${draft.fact.id}`,statement:draft.fact.statement,evidencePaths:[...new Set(draft.fact.evidence.map(e=>e.path))],stale,recommendation:stale?'reverify':'present-for-approval'});
     }return states;
   }
   async finish(id:string,cursor?:string,limit?:number) {
@@ -146,20 +147,36 @@ export class Workflow {
       const task=await this.task(id),registry=await this.store.read();
       const additions=await this.draftStates(task,registry);
       task.phase='awaiting-approval';await this.save(id,task);
-      const changes=Object.entries(task.changes).map(([factId,statement])=>{
-        let current='(removed)';try{current=this.store.fact(registry,factId).fact.statement;}catch{}
-        return {kind:'updated-fact',factId,statement,changedSinceUpdate:current!==statement};
-      });
+      const changes=[];
+      const states=new Map<string,string>();
+      for(const [factId,statement] of Object.entries(task.changes)) {
+        let current=null;try{current=this.store.fact(registry,factId).fact;}catch{}
+        const detail=task.changeDetails?.[factId];
+        const changedSinceUpdate=detail?!same(current,detail.after):(current?.statement??'(removed)')!==statement;
+        const delta=detail?factReview(detail.before,detail.after):undefined;
+        if(detail&&!delta&&!changedSinceUpdate)continue; // A correction reverted in this task has no net change.
+        let evidenceValid=false;
+        if(detail)try {
+          const key=factId.slice(0,factId.lastIndexOf('/'));
+          await this.store.validateFacts({paths:this.store.chapter(registry,key).paths,facts:current?[current]:[]});
+          if(!states.has(key))states.set(key,(await this.store.status(key,registry)).status);
+          evidenceValid=current===null&&detail.after===null||states.get(key)==='evidence-unchanged';
+        }catch{}
+        changes.push({kind:'updated-fact',factId,...(!delta||!delta.fields.statement?{statement}:{}),...(delta??{}),
+          reason:detail?.reason??'Older task receipt has no before/after detail; use cground review.',
+          changedSinceUpdate,evidenceStatus:evidenceValid?'mechanically-current':'needs-review',
+          recommendation:changedSinceUpdate||!evidenceValid?'reverify':'keep-verified-correction',approvalRequired:false});
+      }
       const entries=[...changes,...additions,
         ...task.pending.map(proposalId=>({kind:'uncommitted-review',proposalId}))];
-      const attention=task.pending.length||additions.some(a=>a.stale)||changes.some(c=>c.changedSinceUpdate);
+      const attention=task.pending.length||additions.some(a=>a.stale)||changes.some(c=>c.recommendation==='reverify');
       const reviewPrompt=attention
         ? 'Resolve pending reviews or changed evidence before sharing these facts with the team.'
         : additions.length
           ? 'Ready to make the following facts available to the team? Review the proposed facts and evidence before approving admission.'
-          : 'Review the corrected facts in knowledge.json before committing them for the team.';
+          : 'Summarize applied corrections: before → after, reason, source links, and your recommendation. The developer does not need to open or edit JSON.';
       return {notification:attention?'attention':additions.length?'approval-required':entries.length?'summary':'none',
-        ...page(entries,cursor,limit),...(entries.length?{reviewPath:'.common-ground/knowledge.json',reviewPrompt}:{})};
+        ...page(entries,cursor,limit,'',12000),...(entries.length?{reviewPrompt,reviewFormat:'Present changed items only, grouped by pillar/chapter. Include before → after, why, source links, and keep/approve/reverify recommendation. Corrections are applied; additions still await explicit approval. Mechanical checks do not prove semantic truth; state uncertainty.'}:{})};
     });
   }
   async proposals(id:string,cursor?:string,limit?:number) {

@@ -26,6 +26,10 @@ All CLI workflows are also available through the cground MCP tool in both profil
 
 For cleanup explicitly requested by a developer: cground tidy all, PILLAR, PILLAR/CHAPTER, or PILLAR/CHAPTER/FACT creates a local tidyId and scope. The calling agent verifies and edits; no model or autonomous job runs inside Common Ground.
 
+## Review without editing JSON
+
+Ask the agent to summarize changed knowledge: before → after, why, source links, and a keep/approve/reverify recommendation. Verified corrections are already applied; additions and new ownership wait for explicit approval. Use cground review [TARGET] or the MCP review operation for a paginated delta against HEAD; use --staged before a commit. Revision/fingerprint-only changes are omitted. This is a review aid, not proof of semantic truth. Never ask a developer to hand-edit knowledge.json.
+
 ## Human-readable knowledge
 
 Open [local/knowledge.md](local/knowledge.md) for a complete generated view of the shared registry, including evidence and dependencies. Init creates it; CLI validate/tidy and successful knowledge writes refresh it only when content changes. It is Git-ignored, excludes pending proposals, and is not proof of current source validity. Edit knowledge through the reviewed workflow, not this disposable export.
@@ -50,7 +54,7 @@ After explicit approval and full review: cground accept-facts TASK_ID REVIEW.jso
 
 The default MCP profile exposes six tools. Existing detailed CLI commands still work; cground serve --profile full exposes the original thirteen MCP tools plus the cground operations tool. Both profiles expose all framework workflows through the cground tool. Call operation:help for the catalog, then help with args.operation for the exact input schema. Neither profile overrides host tool approval settings.
 
-Review [knowledge.json](knowledge.json) before committing knowledge changes. The advisory pre-commit hook checks staged knowledge and sources, reminds developers about review, and allows the commit. It does not approve or edit facts. Notifications are on by default; use cground hook mute to suppress them in this checkout and cground hook unmute to restore them. With an existing hook manager, add cground hook check to its pre-commit hook.
+Before sharing, ask the agent for a compact knowledge review. cground review shows meaningful pillar/chapter/fact changes against HEAD; cground review --staged shows the staged version. Task completion provides before/after corrections and pending additions. The agent explains why, links source, states uncertainty and recommends keep/approve/reverify. Developers approve the plain-language proposal; the framework manages JSON. The advisory pre-commit hook checks staged knowledge and sources, reminds developers about review, and allows the commit. It does not approve or edit facts. Notifications are on by default; use cground hook mute to suppress them in this checkout and cground hook unmute to restore them. With an existing hook manager, add cground hook check to its pre-commit hook.
 
 Commit knowledge.json, this guide and POLICY.md. Keep local/ ignored. Local task state can be removed after the task and admission review are complete; never remove another active task's files.
 <!-- common-ground:end -->

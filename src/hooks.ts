@@ -94,11 +94,11 @@ export async function checkHook(store: Store): Promise<string> {
       catch { notes.push(`${key}: evidence needs review`); continue; }
       if (state.status !== 'evidence-unchanged') notes.push(`${key}: ${state.status}`);
     }
-    if (staged.includes(knowledgePath)) notes.push('Ready to make these facts available to the team? Review git diff --cached -- .common-ground/knowledge.json before sharing.');
+    if (staged.includes(knowledgePath)) notes.push('Ready to make these facts available to the team? Ask your agent for a concise review with cground review --staged before sharing.');
     if (!notes.length || muted) return '';
-    return `Common Ground — staged knowledge review:\n${notes.map(n => `  ${n}`).join('\n')}\nReview .common-ground/knowledge.json against the staged source. Commit allowed.\nMute reminders: cground hook mute`;
+    return `Common Ground — staged knowledge review:\n${notes.map(n => `  ${n}`).join('\n')}\nAsk your agent to verify the affected facts against staged source and summarize what changed. Commit allowed.\nMute reminders: cground hook mute`;
   } catch (e: any) {
-    return muted ? '' : `Common Ground: staged knowledge check could not complete: ${e.message}\nReview .common-ground/knowledge.json before sharing. Commit allowed.`;
+    return muted ? '' : `Common Ground: staged knowledge check could not complete: ${e.message}\nAsk your agent to summarize and verify knowledge changes before sharing. Commit allowed.`;
   } finally {
     if (temporary) await fs.rm(temporary, { recursive: true, force: true });
   }

@@ -4,6 +4,12 @@ Common Ground is packaged with npm and distributed as an asset on [GitHub Releas
 
 Consumers still need Node.js 22+ and npm. The archive contains compiled JavaScript and schemas, but not bundled dependencies. npm downloads those dependencies from the configured registry at installation time. Normal runtime operation is local.
 
+## 0.4.1-beta.0
+
+- `cground review` presents meaningful pillar, chapter, and fact changes against Git HEAD, with staged and structured-output options. When changes exist, the CLI recommends reviewing through a coding agent to verify source and explain what to keep or approve.
+- Task completion gives compact before/after corrections, reasons, source links, and keep/reverify recommendations. Verified corrections are applied before the summary; additions and ownership changes still require developer approval.
+- Init and hook messages direct developers to agent-led review instead of editing the shared JSON.
+
 ## 0.4.0-beta.0
 
 - A complete Markdown reference lives in ignored `.common-ground/local/knowledge.md`, created on init and refreshed by validate, tidy, and shared knowledge updates only when content changes.
@@ -14,7 +20,7 @@ Consumers still need Node.js 22+ and npm. The archive contains compiled JavaScri
 - Fact statements allow up to 2,000 characters for conditions, behavior, and consequences, retaining exact evidence requirements. Schema v2 records remain compatible with this version; older clients with the 320-character limit cannot read longer statements.
 - Initialization installs advisory pre-commit checks by default when no existing hook manager owns the entry point. `cground hook mute` and `unmute` control notifications locally without blocking commits or changing facts.
 - Init output is a short summary and review link; `--json` preserves the full response for integrations.
-- Agents explicitly present proposed facts and evidence for team-sharing approval; corrections are linked for review before commit.
+- Agents explicitly present proposed facts and evidence for team-sharing approval; corrections are summarized in chat with before/after, reasons and source links.
 
 ## One-time setup
 
@@ -37,19 +43,19 @@ npm run release:pack
 This runs tests and the synthetic demo, regenerates the compiled runtime and JSON schemas, and writes these files for the current version:
 
 ```text
-release/common-ground-knowledge-0.4.0-beta.0.tgz
-release/common-ground-knowledge-0.4.0-beta.0.tgz.sha256
+release/common-ground-knowledge-0.4.1-beta.0.tgz
+release/common-ground-knowledge-0.4.1-beta.0.tgz.sha256
 ```
 
-Inspect the archive with `tar -tzf release/common-ground-knowledge-0.4.0-beta.0.tgz`. The package includes `dist/`, `schemas/`, documentation, its manifest and license. Repository knowledge, local state, tests, source fixtures, and `node_modules/` are excluded. Local packaging does not publish remotely.
+Inspect the archive with `tar -tzf release/common-ground-knowledge-0.4.1-beta.0.tgz`. The package includes `dist/`, `schemas/`, documentation, its manifest and license. Repository knowledge, local state, tests, source fixtures, and `node_modules/` are excluded. Local packaging does not publish remotely.
 
 ## Publish the current version
 
 After committing all intended changes, create and push the matching tag:
 
 ```sh
-git tag -a v0.4.0-beta.0 -m "Common Ground 0.4.0-beta.0"
-git push origin v0.4.0-beta.0
+git tag -a v0.4.1-beta.0 -m "Common Ground 0.4.1-beta.0"
+git push origin v0.4.1-beta.0
 ```
 
 Pushing the tag publishes the release automatically after the checks pass. Follow the **GitHub release** run in the repository's Actions tab. The workflow verifies the installed CLI version, then uploads the archive and checksum and generates release notes. Versions containing a prerelease suffix, such as `-beta.1`, are marked as prereleases and are not marked Latest.
@@ -69,21 +75,21 @@ If validation or packaging fails before release creation, fix the problem and pu
 Download the `.tgz` asset using a browser. GitHub's **Source code (zip)** and **Source code (tar.gz)** downloads are source snapshots, not the built npm package. From the download directory:
 
 ```sh
-npm install -g ./common-ground-knowledge-0.4.0-beta.0.tgz
+npm install -g ./common-ground-knowledge-0.4.1-beta.0.tgz
 cground --version
 ```
 
 Optionally download the corresponding `.sha256` asset and check it on Linux before installing:
 
 ```sh
-sha256sum --check common-ground-knowledge-0.4.0-beta.0.tgz.sha256
+sha256sum --check common-ground-knowledge-0.4.1-beta.0.tgz.sha256
 ```
 
 With GitHub CLI installed and, for a private repository, authenticated:
 
 ```sh
-gh release download v0.4.0-beta.0 --repo naztylabs/common-ground \
-  --pattern 'common-ground-knowledge-0.4.0-beta.0.tgz*'
+gh release download v0.4.1-beta.0 --repo naztylabs/common-ground \
+  --pattern 'common-ground-knowledge-0.4.1-beta.0.tgz*'
 ```
 
 Downloading first and installing the local file also avoids npm version differences in permissions for remote tarball URLs. Public release assets can be downloaded without a GitHub account; private repository assets require access.
