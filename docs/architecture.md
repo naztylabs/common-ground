@@ -4,6 +4,7 @@ Common Ground is an open-source framework combining a repository knowledge model
 
 The supported customization surface is repository definitions and supplemental guidance, plus CLI/MCP integrations. Custom discovery, validators, record fields, storage backends, and tools require source changes. There is no plugin loader, stable public SDK, lifecycle-hook API, or configurable discovery-provider interface in this beta. Internal module exports are implementation details rather than a promised extension contract.
 
+- `src/review.ts`: read-only content deltas for pillars/chapters/facts and compact task correction presentation; no second shared knowledge store.
 - `src/operations.ts`: shared CLI/MCP execution and validation, per-operation schemas and approval declarations.
 - `src/commands.ts`: dependency-free CLI syntax/help metadata and strict built-in argument parsing.
 - `src/retrieval.ts`: transport-independent navigation and task-scoped retrieval, also re-exported by the server for compatibility.
@@ -50,3 +51,5 @@ Response reuse is task-scoped and recomputes live fingerprints; it does not cach
 
 
 The Markdown export contains shared records only, including evidence, dependency links, revisions and stored fingerprints. Init creates a bootstrap placeholder when the registry is absent. CLI validate/tidy and successful shared writes refresh the export; pure navigation/MCP tidy previews remain read-only. Export output is deterministic and compared before atomic replacement, so unchanged content preserves file modification time. CLI refreshes use the writer lock; shared-write refreshes run within their existing transaction. Failure to refresh this disposable view after a successful knowledge write is reported on stderr without undoing or misreporting that write. No local drafts or review receipts are rendered.
+
+Task-local correction receipts retain only the before/after records for facts actually changed, plus a reason, so finish can show a net delta and detect later evidence-only edits. They are ignored local state, not a second shared history. Git review compares the registry with HEAD or the index without writing files; it never implies approval or semantic correctness.

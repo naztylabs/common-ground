@@ -32,6 +32,7 @@ async function input(name:string, args:string[], values:Values):Promise<unknown>
     case 'start': case 'owners': return {path:values.path,signal:values.signal??(args.join(' ')||undefined),...paging};
     case 'graph': return {pillarId:first,...paging};
     case 'check': case 'validate': return {target:first??'all',cleanup:String(values.cleanup).toLowerCase()==='y',...paging};
+    case 'review': return {target:first??'all',staged:values.staged??false,evidence:values.evidence??false,...paging};
     case 'tidy': return {target:first,...paging};
     case 'review-checklist': return {chapterIds:args,touchedPaths:list(values.touched),...paging};
     case 'list': return paging;
@@ -48,8 +49,8 @@ function initText(result:Awaited<ReturnType<typeof initialize>>, root:string) {
   const link=(file:string)=>`[${file}](${path.resolve(root,file)})`;
   return ['Common Ground initialized.',result.hook,
     'existingRegistry' in result
-      ? `Review the knowledge before sharing: ${link('.common-ground/knowledge.json')}`
-      : `Review the proposed map with your agent: ${link('.common-ground/local/bootstrap.json')}\nAfter approval and population, review ${link('.common-ground/knowledge.json')} before sharing (not created yet).`,
+      ? `Ask your agent to summarize knowledge changes with cground review before sharing.`
+      : `Ask your agent to summarize the proposed responsibility map for approval.\nYour agent presents the proposed pillars and facts for approval, then writes the shared knowledge.`,
     `Local Markdown: ${link(result.markdown.path)}`].join('\n');
 }
 function checkText(result:CheckResult) {
@@ -58,7 +59,7 @@ function checkText(result:CheckResult) {
   if(result.summary.unpopulatedChapters.length)lines.push(`Empty chapters: ${result.summary.unpopulatedChapters.join(', ')}. Complete approved setup with your agent.`);
   if(!result.summary.selectedFacts)lines.push('No facts recorded. Complete setup with your agent.');
   if(result.cleanup)lines.push(`Cleanup plan: ${result.cleanup.tidyId}`, 'Ask your agent to review the affected source and apply verified corrections.');
-  lines.push(`Review: .common-ground/knowledge.json`, `Markdown: ${result.markdown.path}`);
+  lines.push(`Review changes with your agent: cground review`, `Markdown: ${result.markdown.path}`);
   return lines.join('\n');
 }
 async function main() {
@@ -88,6 +89,7 @@ async function main() {
     if(!result.valid)process.exitCode=1;
     output=process.stdout.isTTY&&!values.json?checkText(result):result;
   }
+  if(command.name==='review'&&!values.json) {const {reviewText}=await import('./review.js');output=reviewText(output as Awaited<ReturnType<typeof import('./review.js').reviewKnowledge>>);}
   if(command.name==='doctor' && !(output as {valid:boolean}).valid)process.exitCode=1;
   if(process.stdout.isTTY && !values.json) {
     if(command.name==='doctor') {

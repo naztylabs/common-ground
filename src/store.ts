@@ -389,7 +389,12 @@ export class Store {
         task=JSON.parse(await fs.readFile(this.file(taskName),'utf8'));
         if(!task.pending.includes(id))throw new Error('Prepared update does not belong to this task.');
         for(const review of evaluated.request.reviews)for(const factId of review.invalidatedFactIds){
-          task.changes[`${review.chapterId}/${factId}`]=review.facts.find(f=>f.id===factId)?.statement??'(removed)';
+          const key=`${review.chapterId}/${factId}`;
+          const before=this.chapter(registry,review.chapterId).facts.find(f=>f.id===factId)??null;
+          const after=review.facts.find(f=>f.id===factId)??null;
+          task.changeDetails??={};
+          task.changeDetails[key]={before:task.changeDetails[key]?.before??before,after,reason:review.maintenance?.find(item=>item.factId===factId)?.reason??review.reason};
+          task.changes[key]=after?.statement??'(removed)';
         }
         task.pending=task.pending.filter((pending:string)=>pending!==id);
       }

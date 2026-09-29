@@ -1,3 +1,4 @@
+import { reviewKnowledge } from './review.js';
 import { ReadKnowledge, readKnowledge, listPillars, listChapters, readChapter, readFact, search, reviewChecklist } from './retrieval.js';
 import { z } from 'zod';
 import { Store } from './store.js';
@@ -30,7 +31,7 @@ export function operations(store:Store):Record<string,Operation> {
     admit:op('Admit developer-approved facts after reviewing the whole chapter and source.',{chapterId:chapterKey,facts:z.array(Fact),...approval},a=>store.admit(a.chapterId,a.facts)),
     'task-start':op('Start once per developer task; continue setup guidance if no taskId.',{paths:z.array(relativePath).optional(),signal:z.string().optional()},a=>flow.start(a.paths,a.signal)),
     'task-assess':op('Assess actual task-touched paths.',{...task,paths:z.array(relativePath),refresh:z.boolean().optional(),...paging},a=>flow.assess(a.taskId,a.paths,a.cursor,a.limit,a.refresh)),
-    'task-finish':op('Finish task; present pending additions for developer approval.',{...task,...paging},a=>flow.finish(a.taskId,a.cursor,a.limit)),
+    'task-finish':op('Finish task; present compact before/after corrections with reasons, sources and recommendations. Only pending additions need approval; never ask the developer to review JSON.',{...task,...paging},a=>flow.finish(a.taskId,a.cursor,a.limit)),
     'read-knowledge':op('Read bounded knowledge; discover read kinds in the read_knowledge tool or help.',ReadKnowledge.shape,a=>readKnowledge(store,a)),
     'prepare-patch':op('Prepare verified existing-fact maintenance after whole chapter and source review.',Patch.shape,a=>flow.prepare(a)),
     'propose-facts':op('Queue source-verified facts locally for later approval.',{...task,chapterId:chapterKey,facts:z.array(Fact).min(1)},a=>flow.propose(a.taskId,a.chapterId,a.facts)),
@@ -39,6 +40,7 @@ export function operations(store:Store):Record<string,Operation> {
     start:op('Route from a source path or symptom.',routing,a=>startHere(store,a)),
     owners:op('Read ownership routing hints.',routing,a=>ownershipMap(store,a)),
     graph:op('Read the recorded dependency graph.',{pillarId:z.string().optional(),...paging},a=>pillarGraph(store,a.pillarId,a.cursor,a.limit)),
+    review:op('Summarize meaningful pillar/chapter/fact changes against Git HEAD, omitting unchanged records and metadata. Present the delta, verified reason, source links and recommendation in chat; no JSON editing. This is a diff, not proof of truth or approval.',{target:z.string().default('all'),staged:z.boolean().default(false),evidence:z.boolean().default(false),...paging},a=>reviewKnowledge(store,a.target,a.staged,a.evidence,a.cursor,a.limit)),
     check,
     validate:check,
     tidy:op('Start developer-requested cleanup for all, pillar, chapter or fact; returns tidyId. Calling agent must verify source and submit corrections. No internal model runs.',{...target,...paging},a=>startTidy(store,a.target,a.cursor,a.limit)),
