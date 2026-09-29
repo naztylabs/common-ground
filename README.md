@@ -42,7 +42,7 @@ There is **no fixed fact-count ceiling**. Read responses are paginated to keep c
 
 Durable knowledge covers subsystem behavior, architecture, connections, build/deploy mechanics, established conventions, and commands verified in source. It excludes bugs, open issues, work to fix, postmortems, debugging narratives, generic technology explainers, unverified claims, and temporary checkout state.
 
-Any developer can request `cground tidy PILLAR` or `cground tidy PILLAR/CHAPTER/FACT` (a unique fact ID also works). The command creates a plan and local `tidyId`; the calling agent reads source and submits the cleanup. Common Ground remains model-independent and makes no semantic edits automatically. Compact MCP `read_knowledge` with `kind: "tidy"` previews scope without issuing authorization. See [the complete knowledge policy](docs/knowledge-policy.md).
+Any developer can request `cground tidy all`, `cground tidy PILLAR`, `cground tidy PILLAR/CHAPTER`, or `cground tidy PILLAR/CHAPTER/FACT` (a unique fact ID also works). The command creates a plan and local `tidyId`; the calling agent reads source and submits the cleanup. Common Ground remains model-independent and makes no semantic edits automatically. Compact MCP `read_knowledge` with `kind: "tidy"` previews scope without issuing authorization. See [the complete knowledge policy](docs/knowledge-policy.md).
 
 Exact quotes, review declarations, and hashes do not prove natural-language truth or that an external agent actually read a file. The software checks declared coverage, current evidence, dependency references, scope, and concurrent changes; agents remain responsible for verification and resolving uncertainty.
 
@@ -127,6 +127,31 @@ The fact input is an array of records such as:
 
 Commit `.common-ground/knowledge.json`, `.common-ground/START_HERE.md`, `.common-ground/POLICY.md`, the managed instruction files, `.vscode/mcp.json`, and `.gitignore`. `init` creates or updates a marked ignore block for `.common-ground/local/`; existing entries are preserved. Already-tracked files must be explicitly untracked.
 
+## Local Markdown reference
+
+Open `.common-ground/local/knowledge.md` for a complete human-readable view of the shared registry. It includes a table of contents, every pillar/chapter boundary, every fact, exact evidence quotes with source links, dependency links, chapter revisions, and expandable stored hash metadata. It is not paginated and excludes pending proposals and task-local notes.
+
+`cground init` creates it, and `cground validate` and `cground tidy` refresh it even when targeting only one fact. Successful shared knowledge writes also refresh it, so completed tidy corrections appear immediately. On fresh setup it explains that no approved knowledge exists yet; it never invents facts or presents the bootstrap proposal as approved knowledge.
+
+The existing `.common-ground/local/` ignore rule keeps the export out of normal Git diffs. Treat it as disposable: manual edits are overwritten on refresh. Identical content is not rewritten, and no generated timestamp causes churn. It represents stored knowledge, not a live validation certificate; current source and the shared JSON remain authoritative. The pure MCP tidy preview does not refresh local files.
+
+## Validate and tidy knowledge
+
+```sh
+cground validate                   # Defaults to all
+cground validate all
+cground validate PILLAR
+cground validate PILLAR/CHAPTER
+cground validate PILLAR/CHAPTER/FACT
+cground tidy all                   # Prepare a full agent-led review
+```
+
+Validation leaves shared knowledge unchanged: it checks the registry structure, exact evidence quotes, source scopes, dependency references and freshness. A fact target checks that fact and its transitive upstream dependencies; unrelated sibling facts and reverse dependents are not selected. Unambiguous short fact IDs also work. `all` is reserved for the whole registry; use qualified paths to address a fact named `all`.
+
+Exit status is 0 when all selected facts pass, or 1 for invalid evidence, drift needing review, unpopulated chapters, an empty registry, or an error. Results use the usual `--limit`/`--cursor` pagination, but `valid` and `summary` cover the entire selection, even when a failure is on a later page. Registry structure and reference integrity are always checked globally. Existing matching local review receipts can acknowledge harmless source drift, but never excuse missing evidence quotes. Validation creates no receipts and does not prove natural-language truth.
+
+`tidy all` creates one local receipt covering every chapter, including disconnected pillars. The agent must read every required chapter and current source before submitting a reviewed transaction. It does not run a model or rewrite knowledge itself. The receipt becomes stale after a shared registry change; request another scope for subsequent transactions. An empty registry produces an empty plan without a receipt. `cground check` remains the original whole-registry freshness check.
+
 ## Pre-commit knowledge reminders
 
 `cground init` installs an advisory Git pre-commit hook by default in a Git repository without an existing hook. Each checkout needs initialization. The hook checks **staged** knowledge against **staged** source, including when a developer uses no agent. It reports stale chapters and reminds developers to review staged knowledge changes before making facts available to the team. It never edits facts, prompts for terminal input, or blocks a commit.
@@ -157,7 +182,7 @@ Existing schema-v2 repositories keep their records. Run `cground init` after upg
 
 ## Agent tools and CLI
 
-The default profile exposes five tools:
+The default profile exposes six tools:
 
 | MCP tool | Purpose | CLI |
 |---|---|---|
@@ -165,17 +190,34 @@ The default profile exposes five tools:
 | `read_knowledge` | Bounded indexes, facts/evidence, ownership, graph, review checklists, and drafts | `cground read-knowledge REQUEST.json` |
 | `prepare_patch` | Verify complete reviews; transmit only replacements/removals | `cground prepare-patch PATCH.json` |
 | `commit_update` | Recheck and write the prepared corrections to the working tree | `cground commit PROPOSAL_ID` |
+| `cground` | Discover and execute all framework operations, with structured inputs and approval requirements | All CLI workflows |
 | `propose_facts` | Stage additions locally for end-of-task approval | `cground propose-facts TASK CHAPTER FACTS.json` |
 
 `read_knowledge` accepts `kind`, an optional `target` pillar/chapter/fact ID, `taskId`, and pagination options. `kind: "chapter", evidence: true` returns full facts in batches. Use `kind: "review"` for dependency scope and `kind: "checklist"` for evidence and documentation paths. All page cursors must be followed for a complete review.
 
-The original CLI navigation commands (`start`, `owners`, `graph`, `list`, `chapters`, `read`, `fact`, `search`, `review-plan`, `review-checklist`, `tidy`, `prepare`) remain available. `serve --profile full` exposes the original thirteen MCP tools for existing integrations. All commands accept `--root PATH`.
+The original CLI navigation commands (`start`, `owners`, `graph`, `list`, `chapters`, `read`, `fact`, `search`, `review-plan`, `review-checklist`, `tidy`, `prepare`) remain available. `serve --profile full` exposes the original thirteen MCP tools plus cground for existing integrations. All commands accept `--root PATH`.
 
 Publication rejects source changes, conflicting knowledge revisions, unrelated edits, malformed facts, and incomplete dependency reviews. Unchanged reviews write only local validation state. See [the compact workflow and request formats](docs/quiet-workflow.md) and [the record contract](docs/pillar-contract.md).
 
+### Complete MCP workflow coverage
+
+Both profiles include the `cground` tool. Use `{"operation":"help"}` for the paginated catalog and `{"operation":"help","args":{"operation":"seed"}}` for an operation's exact JSON input schema. Operations accept structured records directly; agents do not need a shell or temporary request files. Setup, migration, chapter approval, seeding, admission, task workflows, navigation, validation, cleanup, hooks, diagnostics, version and Markdown export are available. `serve` starts the transport itself; the host selects the repository root.
+
+For “check the facts in the CI/CD pillar and freshen them if needed,” the agent resolves its pillar ID, then calls:
+
+```json
+{"operation":"validate","args":{"target":"cicd","cleanup":true}}
+```
+
+A check alone uses `cleanup:false` (the default). Stale results list affected pillar, chapter and fact IDs and return “Start automatic cleanup?” When cleanup is already requested by the developer, the agent may proceed; otherwise it presents that question first. `cleanup:true` issues a local `tidyId` for affected chapters and their linked review scope. The agent reads every required chapter and source/documentation, prepares verified corrections, commits the reviewed transaction to the working tree, and validates again. This does not launch an internal model or declare facts repaired merely because a plan was issued.
+
+CLI equivalents are `cground check cicd` or `cground validate cicd`, with an interactive `[y/N]` prompt when stale. Use `--cleanup y` or `--cleanup n` for scripts and agents. Piped input and `--json` never wait for keyboard input. Results remain JSON on stdout; prompts and summaries go to stderr. Exit status remains 1 while knowledge is stale, invalid or unpopulated, including after accepting a cleanup plan. Checks and validation now share scoped, per-fact results; `check` no longer returns the legacy chapter-status array. Unpopulated chapters require approved setup, not automatic fact generation.
+
+Admission operations require `approved:true`, declaring the developer's explicit approval of the exact proposed content. This is not an authorization token. Existing whole-chapter reviews and source/revision conflict checks still apply. Agent hosts control tool permissions. MCP-capable agents can use this protocol; a chat without tool access cannot invoke it by itself. Native VS Code GUI acceptance remains unverified.
+
 ## Keeping context and interruptions small
 
-- Five default tool definitions, a short always-loaded instruction block, and detailed policy loaded before edits.
+- Six default tool definitions, a short always-loaded instruction block, and detailed policy loaded before edits.
 - Direct path routing; paginated reads instead of whole-pillar dumps. Chapter evidence batches avoid one call per fact. Pages default to 10 records, at most 20, with a 12,000-character soft budget for full-fact batches. A single oversized record is returned intact to preserve evidence and dependencies.
 - Task-local reuse returns a short `unchanged` reference for identical context. Live source/dependency changes invalidate it; use `refresh: true` after context loss. This never substitutes for source reading.
 - Compact JSON tool responses and patch requests that omit unchanged facts. No count limit on stored facts.
@@ -191,7 +233,7 @@ Common Ground does not run an LLM or a background watcher. The calling agent fol
 
 1. Ensure `cground` is on VS Code's PATH; restart VS Code after installing if needed.
 2. Open the repository and use **MCP: List Servers** to start Common Ground, completing normal host trust prompts.
-3. In Copilot agent chat, check that the five default tools are available.
+3. In Copilot agent chat, check that the six default tools are available.
 4. Ask the agent where to start with a build failure, then navigate its suggested pillar and chapters and verify the facts in source.
 
 For other MCP clients, launch `cground serve --root /absolute/repository/path`. Remote SSH or dev-container sessions need the package installed in that environment. This targets agent chat, not inline completion. Automated tests cover the real stdio protocol; manual VS Code GUI acceptance remains a separate check.

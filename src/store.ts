@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { Registry, LegacyRegistry, PillarDefinition, ChapterDefinition, Chapter, Fact, Update, relativePath, unique, type RegistryRecord, type ChapterRecord, type Definition, type UpdateRequest } from './model.js';
 import { reviewDocuments } from './review-files.js';
+import { writeKnowledgeExport } from './export.js';
 const ignored = new Set(['.git','node_modules','.common-ground','dist','build','target','.nx','.next','coverage','.env']);
 const hash = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
 const stable = (v: unknown): string => JSON.stringify(v, (_, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a],[b]) => a.localeCompare(b))) : x);
@@ -55,7 +56,13 @@ export class Store {
     if (raw.schemaVersion === 1) throw new Error('Schema v1 requires migration: cground migrate --approve, then cground init.');
     return this.validateRegistry(raw);
   }
-  async persist(registry: RegistryRecord) { await this.atomic('knowledge.json',this.validateRegistry(registry)); }
+  async persist(registry: RegistryRecord) {
+    const validated = this.validateRegistry(registry);
+    await this.atomic('knowledge.json',validated);
+    // A disposable export failure must not turn a successful shared write into a failed transaction.
+    try { await writeKnowledgeExport(this,validated); }
+    catch (e: any) { console.error(`Common Ground: knowledge saved, but Markdown export could not refresh: ${e.message}. Run cground validate to retry.`); }
+  }
   async atomic(name: string, value: unknown) {
     await this.safe(`.common-ground/${name}`, true);
     await fs.mkdir(path.dirname(this.file(name)), { recursive: true });
@@ -230,23 +237,26 @@ export class Store {
     return {chapterId:key,factIds,policy:'Trace fact dependencies and dependents; fully review the chapters containing those facts. Read source this session and use review_checklist for directory, sibling, child, and referenced documentation. Corrections and explicit maintenance require reasons; unchanged facts need no rewrite.',affectedFacts:this.impact(registry,key,factIds),chapters:await Promise.all(this.related(registry,key,factIds).map(async chapterId=>{const c=this.chapter(registry,chapterId);return {chapterId,title:c.title,revision:c.revision,factCount:c.facts.length,freshness:await this.status(chapterId,registry)};}))};
   }
   resolveTarget(registry: RegistryRecord, target: string) {
+    if (target === 'all') return this.chapters(registry).map(c => c.key);
     const matches: string[][] = [];
     const pillar = registry.pillars.find(p => p.id === target);
     if (pillar) matches.push(pillar.chapters.map(c => `${pillar.id}/${c.id}`));
     const chapter = this.chapters(registry).find(c => c.key === target);
     if (chapter) matches.push([chapter.key]);
     for (const fact of this.facts(registry)) if (fact.key === target || fact.fact.id === target) matches.push([fact.chapterId]);
-    if (matches.length !== 1) throw new Error(matches.length ? 'Ambiguous tidy target; use pillar/chapter/fact or pillar/chapter.' : 'Unknown tidy target');
+    if (matches.length !== 1) throw new Error(matches.length ? 'Ambiguous target; use pillar/chapter/fact or pillar/chapter.' : 'Unknown target; use a pillar, pillar/chapter, pillar/chapter/fact, or all.');
     return matches[0];
   }
-  async requestTidy(target: string) {
+  async requestTidy(target: string | string[], expectedRegistry?: RegistryRecord) {
     return this.lock(async () => {
       const registry = await this.read();
-      const roots = this.resolveTarget(registry, target);
+      if (expectedRegistry && !same(registry, expectedRegistry)) throw new Error('Knowledge changed; rerun the check before cleanup.');
+      const roots = [...new Set((Array.isArray(target) ? target : [target]).flatMap(item=>this.resolveTarget(registry, item)))];
       const chapters = [...new Set(roots.flatMap(key => this.related(registry, key)))].sort();
+      if (!chapters.length) return {tidyId:null, instruction:'No chapters to tidy. Complete approved setup first.'};
       const tidyId = randomUUID();
       await this.atomic(`local/tidy-${tidyId}.json`, {registryHash:hash(stable(registry)), roots, chapters});
-      return {tidyId, instruction:'Developer-requested cleanup only. The calling agent must read and verify source and documentation, then submit prepare_update with this tidyId. No facts have been changed.'};
+      return {tidyId, requiredChapters:chapters, instruction:'Developer-requested cleanup only. The calling agent must read and verify source and documentation, then submit prepare_update with this tidyId. No facts have been changed.'};
     });
   }
   async tidyScope(id: string, registry: RegistryRecord): Promise<string[]> {

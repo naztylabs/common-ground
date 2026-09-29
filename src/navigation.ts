@@ -1,4 +1,4 @@
-import type { Store } from './store.js';
+import { same, type Store } from './store.js';
 import { relativePath } from './model.js';
 import { page } from './paging.js';
 
@@ -94,9 +94,65 @@ export async function tidyPlan(store: Store, target: string, cursor?: string, li
     const duplicates = [...groups.values()].filter(ids => ids.length > 1);
     return {chapterId: key, revision: c.revision, factCount: c.facts.length,
       duplicateGroupCount: duplicates.length, duplicateHints: duplicates.slice(0, 3).map(ids => ids.slice(0, 5))};
-  }), cursor, limit);
+  }), cursor, limit, JSON.stringify(registry));
   return {target, writesKnowledge: false, agentActionRequired: true,
     policy: 'Skim every fact page in each required chapter. Read source now, merge verified near duplicates, remove superseded content, tighten narrative, correct in place, and repair references atomically. Similar wording is only a hint. If verification is ambiguous, ask; do not guess.',
-    next: 'Use review_checklist for these chapter IDs and touched paths. A developer-requested cground tidy TARGET issues a local tidyId for prepare_update; the MCP tidy_plan only previews scope.',
+    next: 'Use review_checklist for these chapter IDs and touched paths. A developer-requested cground tidy TARGET or MCP cground operation tidy issues a local tidyId for prepare_update or prepare_patch; tidy_plan itself only previews scope.',
     requiredChapterCount: required.length, chapters};
+}
+
+
+/** Read-only mechanical validation. Evidence presence never proves semantic truth. */
+export async function validateKnowledge(store: Store, target = 'all', cursor?: string, limit?: number) {
+  const registry = await store.read(); // Schema, ownership and dependency references are checked globally.
+  const chapters = store.resolveTarget(registry, target);
+  const allFacts = store.facts(registry), index = new Map(allFacts.map(f => [f.key, f]));
+  const factTarget = target === 'all' ? undefined : allFacts.find(f => f.key === target || f.fact.id === target);
+  const selected = factTarget ? [factTarget] : allFacts.filter(f => chapters.includes(f.chapterId));
+  const required = [...new Set(selected.flatMap(f => [f.key, ...store.upstreamFacts(registry, f.key, index)]))];
+  const checked = new Map<string, {changedPaths:string[]; errors:string[]}>();
+  const states = new Map<string, Awaited<ReturnType<Store['status']>>>();
+  const fingerprints = new Map<string, Record<string,string>>();
+  for (const key of required) {
+    const {chapterId,chapter,fact} = index.get(key)!;
+    const errors: string[] = [];
+    try { await store.validateFacts({paths:chapter.paths,facts:[fact]}); }
+    catch (e: any) { errors.push(e.message); }
+    let changedPaths: string[] = [];
+    try {
+      const current = await store.snapshot({paths:chapter.paths,facts:[fact]});
+      const baseline = Object.fromEntries(Object.entries(chapter.sources).filter(([file]) => fact.sourceScope.some(scope => contains(scope,file))));
+      changedPaths = [...new Set([...Object.keys(current),...Object.keys(baseline)])].filter(file => current[file] !== baseline[file]).sort();
+    } catch (e: any) { if (!errors.includes(e.message)) errors.push(e.message); }
+    checked.set(key,{changedPaths,errors});
+    if (!states.has(chapterId)) {
+      states.set(chapterId,await store.status(chapterId,registry));
+      fingerprints.set(chapterId,store.dependencyFingerprints(registry,chapterId));
+    }
+  }
+  const items = selected.map(({key,chapterId,chapter}) => {
+    const own = checked.get(key)!;
+    const dependencies = store.upstreamFacts(registry,key,index);
+    const dependencyIssues = dependencies.filter(dep => {
+      const state = checked.get(dep)!;
+      return state.errors.length || state.changedPaths.length || chapter.dependencyFingerprints[dep] !== fingerprints.get(chapterId)![dep];
+    }).map(factId => ({factId,...checked.get(factId)!,recordChanged:chapter.dependencyFingerprints[factId] !== fingerprints.get(chapterId)![factId]}));
+    const locallyReviewed = states.get(chapterId)!.locallyReviewed === true;
+    const invalidEvidence = own.errors.length > 0 || dependencyIssues.some(d => d.errors.length > 0);
+    const drift = own.changedPaths.length > 0 || dependencyIssues.length > 0;
+    return {factId:key,chapterId,status:invalidEvidence || (drift && !locallyReviewed) ? 'needs-review' : 'evidence-unchanged',
+      ...own,dependencyIssues,locallyReviewed};
+  });
+  const unpopulatedChapters = chapters.filter(key => !store.chapter(registry,key).facts.length);
+  const stale = items.filter(item => item.status === 'needs-review');
+  const affected = {pillars:[...new Set(stale.map(item=>item.chapterId.split('/')[0]))].sort(), chapters:[...new Set(stale.map(item=>item.chapterId))].sort(), facts:stale.map(item=>item.factId).sort()};
+  const needsReview = items.filter(item => item.status === 'needs-review').length;
+  // Do not return success for a registry that changed during a potentially long scan.
+  if (!same(registry,await store.read())) throw new Error('Knowledge changed during validation; rerun validate.');
+  return {target,writesKnowledge:false,valid:items.length > 0 && needsReview === 0 && unpopulatedChapters.length === 0,
+    basis:'Checks registry structure, exact evidence, source scopes and upstream dependencies. This does not prove the assertions are true.',
+    affected,
+    cleanupPrompt:needsReview ? "Start automatic cleanup?" : null,
+    summary:{selectedFacts:items.length,checkedFacts:required.length,needsReview,unpopulatedChapters},
+    ...page(items,cursor,limit,JSON.stringify({target,registry}),12000)};
 }

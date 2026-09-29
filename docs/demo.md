@@ -21,7 +21,7 @@ cground review-plan web-components/search --facts search-minimum
 
 The supplied plan is synthetic reviewed fixture data. Real initialization requires an agent to explain and refine the proposed ownership map with the developer.
 
-Open the directory in VS Code and start Common Ground with MCP: List Servers. Ask Copilot to route a build failure to its owner and inspect the recorded CI → workspace dependency, then select Search and explain its facts. Check that five default tools are available. The original CLI commands below remain supported. Commit source, shared registry, Start Here guide, detailed policy, instructions, and MCP configuration; local metadata remains ignored. No Java build dependency is invented: the fixture does not establish a complete Nx/Java application stack.
+Open the directory in VS Code and start Common Ground with MCP: List Servers. Ask Copilot to route a build failure to its owner and inspect the recorded CI → workspace dependency, then select Search and explain its facts. Check that six default tools are available. The original CLI commands below remain supported. Commit source, shared registry, Start Here guide, detailed policy, instructions, and MCP configuration; local metadata remains ignored. No Java build dependency is invented: the fixture does not establish a complete Nx/Java application stack.
 
 Change `SEARCH_MIN_LENGTH = 2` to `SEARCH_MIN_LENGTH = 3` in `packages/ui/search.ts`. The Results validation fact depends on the Search threshold fact, so both chapters must be reviewed:
 

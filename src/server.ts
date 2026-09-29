@@ -1,3 +1,4 @@
+import { registerOperations } from './operations.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -35,7 +36,7 @@ export function createFullServer(store:Store){
   register('start_here','Start with a failing command, symptom, or source path. Returns an agent workflow and bounded ownership candidates; it does not diagnose bugs.',routing,true,args=>startHere(store,args));
   register('ownership_map','Map registered paths or keyword signals to owning pillars and chapters. Signal matches are hints; verify code.',routing,true,args=>ownershipMap(store,args));
   register('pillar_graph','Read the recorded pillar dependency graph derived from fact references. Direction is dependent to dependency; missing edges are unknown.',{pillarId:z.string().optional(),...paging},true,({pillarId,cursor,limit})=>pillarGraph(store,pillarId,cursor,limit));
-  register('tidy_plan','Preview cleanup scope for a pillar, chapter, or fact. No changes or approval are made; the calling agent must verify source and documentation.',{target:z.string().min(1),...paging},true,({target,cursor,limit})=>tidyPlan(store,target,cursor,limit));
+  register('tidy_plan','Preview cleanup scope for all knowledge, a pillar, chapter, or fact. No changes or approval are made; the calling agent must verify source and documentation.',{target:z.string().min(1),...paging},true,({target,cursor,limit})=>tidyPlan(store,target,cursor,limit));
   register('review_checklist','List current source and documentation files to open before review, including no-op outcomes. Attest only after reading them this session; deleted files require a live absence check.',{chapterIds:z.array(chapterKey),touchedPaths:z.array(relativePath),...paging},true,({chapterIds,touchedPaths,cursor,limit})=>reviewChecklist(store,chapterIds,touchedPaths,cursor,limit));
   register('list_pillars','List repository responsibility boundaries without loading facts.',paging,true,({cursor,limit})=>listPillars(store,cursor,limit));
   register('list_chapters','Read a pillar chapter index; skim scopes to select the relevant chapter. Returns no facts.',{pillarId:z.string(),...paging},true,({pillarId,cursor,limit})=>listChapters(store,pillarId,cursor,limit));
@@ -45,6 +46,7 @@ export function createFullServer(store:Store){
   register('review_plan','List required chapter reviews, by tracing fact dependencies and dependents. Select factIds to narrow the impact graph. It does not authorize rewriting valid facts.',{chapterId:chapterKey,factIds:Update.shape.factIds},true,({chapterId,factIds})=>store.reviewPlan(chapterId,factIds));
   register('prepare_update','After authorized work: submit complete reviews for the chapter and every linked chapter from review_plan. Correct invalidated facts in place; explicitly reasoned maintenance may merge, remove, or tighten existing facts. Read source and documentation this session and supply verification. Uncertainty requires developer input.',Update.shape,false,args=>store.prepare(args));
   register('commit_update','Atomically publish changed chapters in a prepared review transaction. Rechecks evidence, source snapshots, and registry revision.',{proposalId:z.string()},false,({proposalId})=>store.commit(proposalId));
+  registerOperations(server,store);
   return server;
 }
 export async function serve(store:Store,profile='compact'){await createServer(store,profile).connect(new StdioServerTransport());}
@@ -110,6 +112,7 @@ export function createServer(store:Store,profile='compact') {
   register('prepare_patch','Quiet existing-fact maintenance only. Read POLICY.md, all required chapter pages and source first. reviewedAllFacts attests the whole revision. Send only changed records; unchanged records are preserved.',Patch.shape,false,args=>workflow.prepare(args));
   register('commit_update','Write a prepared correction to the Git working tree after rechecking revisions, source and documentation. Report at task completion.',{proposalId:z.string().uuid()},false,({proposalId})=>store.commit(proposalId));
   register('propose_facts','Queue verified new facts locally; no shared write. Batch for developer approval after task_context finish. Dependencies must already be admitted.',{taskId:z.string().uuid(),chapterId:chapterKey,facts:z.array(Fact).min(1)},false,({taskId,chapterId,facts})=>workflow.propose(taskId,chapterId,facts));
+  registerOperations(server,store);
   return server;
 }
 

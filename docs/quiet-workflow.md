@@ -71,7 +71,7 @@ If only some additions are approved, first discard rejected drafts with `cground
 
 ## Context controls and limitations
 
-- The default MCP profile has five tools. `--profile full` retains the original thirteen for compatibility; all CLI commands remain available.
+- The default MCP profile has six tools. `--profile full` retains the original thirteen plus cground for compatibility; all CLI workflows are available through MCP.
 - Generated `AGENTS.md` carries essential instructions and links to the detailed policy, loaded before edits.
 - Chapter evidence pages have a 12,000-character soft record budget and a 20-record maximum. At least one complete record is returned even if unusually large; evidence and dependencies are never silently cut off. There is no stored fact-count limit.
 - With a task ID, repeated unchanged reads/assessments return a short `unchanged` reference. Reuse it only if the original response is still in the agent's context. Use `refresh: true` to resend after context loss, and a new task for a new agent/session. Source and dependency changes invalidate relevant reuse; documentation changes invalidate checklist/assessment reuse. No live branch/submodule state is cached.

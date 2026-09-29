@@ -12,7 +12,9 @@ test('real stdio MCP handshake, discovery, retrieval, and validation errors',asy
  const client=new Client({name:'beta-test',version:'1.0.0'});const transport=new StdioClientTransport({command:process.execPath,args:[path.resolve('dist/cli.js'),'serve','--profile','full','--root',root],stderr:'pipe'});await client.connect(transport);t.after(()=>client.close());
  const manifest=JSON.parse(await fs.readFile(new URL('../package.json',import.meta.url),'utf8'));
  assert.equal(client.getServerVersion().version,manifest.version);
- const listed=await client.listTools();assert.equal(listed.tools.length,13);assert.ok(!listed.tools.some(x=>/create|approve|seed/.test(x.name)));
+ const listed=await client.listTools();assert.equal(listed.tools.length,14);assert.ok(!listed.tools.some(x=>/create|approve|seed/.test(x.name)));
+ const operationHelp=await client.callTool({name:'cground',arguments:{operation:'help',args:{operation:'validate'}}});assert.equal(JSON.parse(operationHelp.content[0].text).inputSchema.properties.cleanup.type,'boolean');
+ const operationCheck=await client.callTool({name:'cground',arguments:{operation:'validate',args:{target:'app'}}});assert.equal(JSON.parse(operationCheck.content[0].text).valid,false);
  const result=await client.callTool({name:'list_pillars',arguments:{}});assert.match(result.content[0].text,/Application/);
  const index=await client.callTool({name:'list_chapters',arguments:{pillarId:'app'}});assert.match(index.content[0].text,/app\/overview/);
  const chapter=await client.callTool({name:'read_chapter',arguments:{chapterId:'app/overview'}});assert.match(chapter.content[0].text,/unpopulated/);

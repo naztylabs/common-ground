@@ -4,20 +4,23 @@ Common Ground is an open-source framework combining a repository knowledge model
 
 The supported customization surface is repository definitions and supplemental guidance, plus CLI/MCP integrations. Custom discovery, validators, record fields, storage backends, and tools require source changes. There is no plugin loader, stable public SDK, lifecycle-hook API, or configurable discovery-provider interface in this beta. Internal module exports are implementation details rather than a promised extension contract.
 
+- `src/operations.ts`: discoverable structured MCP parity for CLI workflows, per-operation schemas and approval declarations.
+- `src/maintenance.ts`: shared CLI/MCP checks, stale summaries and scoped cleanup handoffs.
+- `src/export.ts`: complete deterministic Markdown rendering and atomic refresh of the ignored local reference.
 - `src/model.ts`: strict schema v2 pillar, chapter, fact, and multi-chapter review records; schema v1 migration input.
 - `src/store.ts`: safe paths, evidence and ownership checks, dependency traversal, freshness, migration, and atomic review transactions.
 - `src/workflow.ts`: task-local context reuse, compact patches, deferred fact proposals, and reviewed batch admission.
 - `src/hooks.ts`: default advisory Git hook installation, staged-source checks, and checkout-local notification preferences.
 - `src/init.ts`: managed repository instructions/MCP configuration and bootstrap orchestration.
 - `src/discovery.ts`: bounded static manifest/source-path discovery, technology signals and proposed project ownership.
-- `src/server.ts`: five default stdio MCP tools (thirteen in the compatibility profile), paginated navigation, evidence retrieval, and Unicode-aware keyword search.
-- `src/navigation.ts`: derived ownership routing, pillar graph, Start Here responses, and read-only tidy plans.
+- `src/server.ts`: six default stdio MCP tools (fourteen in the compatibility profile), paginated navigation, evidence retrieval, and Unicode-aware keyword search.
+- `src/navigation.ts`: derived ownership routing, pillar graph, Start Here responses, read-only scoped validation, and tidy plans including whole-registry review.
 - `src/review-files.ts`: bounded discovery of local, sibling, child, and referenced review documentation.
 - `src/guidance.ts`: short entry instructions, detailed policy and managed Start Here guide.
 - `src/paging.ts`: shared pagination and cursor validation.
 - `src/cli.ts`: agent/operator CLI and MCP entry point.
 
-`.common-ground/knowledge.json` is a Git-tracked registry. Pillars contain chapter definitions; chapters index facts and define authoring boundaries. Facts own exact evidence, source scopes, and directed fact-to-fact dependencies. One atomic file permits all affected chapter revisions to publish together. `.common-ground/local/` contains ignored proposals, review snapshots, a migration backup, tidy request receipts, task receipts/context fingerprints, queued fact drafts, and a writer lock. `.common-ground/START_HERE.md` and `.common-ground/POLICY.md` are tracked guidance. Ownership maps and pillar graphs are derived from the registry rather than duplicated in a second data model.
+`.common-ground/knowledge.json` is a Git-tracked registry. Pillars contain chapter definitions; chapters index facts and define authoring boundaries. Facts own exact evidence, source scopes, and directed fact-to-fact dependencies. One atomic file permits all affected chapter revisions to publish together. `.common-ground/local/` contains a generated `knowledge.md` view of the complete registry, ignored proposals, review snapshots, a migration backup, tidy request receipts, task receipts/context fingerprints, queued fact drafts, and a writer lock. `.common-ground/START_HERE.md` and `.common-ground/POLICY.md` are tracked guidance. Ownership maps and pillar graphs are derived from the registry rather than duplicated in a second data model.
 
 Storage has no fixed fact-count ceiling. Pillar and chapter indexes and chapter fact reads are paginated (10 by default, up to 20 per response). The compact profile can batch complete facts with evidence, using a 12,000-character soft page budget (a single oversized record stays intact). The full profile also supports individual fact reads. Keyword search returns at most 20 summaries. Pagination rejects changed index/fact content. A full chapter review must traverse all its fact pages.
 
@@ -39,6 +42,9 @@ Documentation discovery scans at most 10,000 scoped entries and follows at most 
 
 Compact patches declare `reviewedAllFacts: true` against a chapter revision and reconstruct unchanged records server-side before invoking the existing validator. They do not weaken whole-chapter review. Task receipts track only committed corrections from that task; pending failed transactions produce an attention result at finish. A crash after a shared write but before its local receipt is saved can require manual reconciliation. Task state remains local and disposable after review, not shared history.
 
-New fact proposals are local and excluded from authoritative retrieval. They snapshot their chapter, source scopes and admitted upstream dependencies. Finished tasks can be admitted through the explicit approval CLI only, with a complete linked-chapter review and source/documentation declarations. Stale drafts require fresh verification and a new proposal batch. The batch writes atomically across chapters. Dependencies on other pending drafts are not supported. Legacy seed/admit commands remain available for developer-directed bootstrap/operator work, so finish/approval checks are a workflow boundary, not a sandbox against filesystem access.
+New fact proposals are local and excluded from authoritative retrieval. They snapshot their chapter, source scopes and admitted upstream dependencies. Finished tasks can be admitted through explicit approval CLI or MCP operations, with a complete linked-chapter review and source/documentation declarations. Stale drafts require fresh verification and a new proposal batch. The batch writes atomically across chapters. Dependencies on other pending drafts are not supported. Legacy seed/admit commands remain available for developer-directed bootstrap/operator work, so finish/approval checks are a workflow boundary, not a sandbox against filesystem access.
 
 Response reuse is task-scoped and recomputes live fingerprints; it does not cache Git branch/submodule state, prove source reading, or survive context loss semantically. The caller must refresh or start a new task after losing earlier responses. Internal full-registry parsing and source hashing remain; byte savings measure transferred context, not all CPU, latency, or billed tokens. See `npm run measure:context` and the regression fixtures in `test/workflow.test.mjs`.
+
+
+The Markdown export contains shared records only, including evidence, dependency links, revisions and stored fingerprints. Init creates a bootstrap placeholder when the registry is absent. CLI validate/tidy and successful shared writes refresh the export; pure navigation/MCP tidy previews remain read-only. Export output is deterministic and compared before atomic replacement, so unchanged content preserves file modification time. CLI refreshes use the writer lock; shared-write refreshes run within their existing transaction. Failure to refresh this disposable view after a successful knowledge write is reported on stderr without undoing or misreporting that write. No local drafts or review receipts are rendered.
