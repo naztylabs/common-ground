@@ -2,7 +2,11 @@ export const bootstrapNext = 'Review .common-ground/local/bootstrap.json against
 
 export const rules = `## Common Ground
 
-Code is the source of truth; these notes only help navigation. Open relevant source this session before relying on a fact. Derive branch/submodule and other temporary state live. Read directory READMEs even when no fact changes.
+Code is the source of truth; these notes only help navigation.
+
+For repository questions, consult Common Ground and verify source. If knowledge is missing or stale, answer from source and prompt to update it. Derive temporary state live; read directory READMEs.
+
+If the developer disputes the code, clarify current versus intended behavior together. Record only verified, durable knowledge under the note-taking rules.
 
 Keep the developer task primary. Use task_context start once. Without a taskId, follow its setup guidance and START_HERE.md; continue from source. Otherwise read_knowledge for relevant chapters (evidence:true), then assess touched paths. Reuse responses only within this task; refresh:true after context loss.
 

@@ -134,7 +134,7 @@ test('compact MCP startup stays smaller with discoverable operations',async t=>{
   }
   assert.equal(manifests.compact.tools.length,6);assert.equal(manifests.full.tools.length,14);
   assert.ok(JSON.stringify(manifests.compact).length<JSON.stringify(manifests.full).length*0.8);
-  assert.ok(Buffer.byteLength(rules)<1600);assert.ok(manifests.compact.tools.some(t=>t.name==='cground'));
+  assert.ok(Buffer.byteLength(rules)<1800);assert.ok(manifests.compact.tools.some(t=>t.name==='cground'));
   assert.ok(manifests.compact.tools.filter(t=>!['commit_update','cground'].includes(t.name)).every(t=>t.annotations.destructiveHint===false));
 });
 test('default CLI stdio profile runs a quiet end-to-end task',async t=>{

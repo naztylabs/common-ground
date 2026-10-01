@@ -33,7 +33,7 @@ export async function initialize(store: Store) {
   await managed(store,'AGENTS.md',rules);
   await managed(store,'.common-ground/START_HERE.md',startGuide);
   await managed(store,'.common-ground/POLICY.md',policy);
-  await managed(store,'.github/copilot-instructions.md','Common Ground repository knowledge rules are in [AGENTS.md](../AGENTS.md). Follow its Common Ground section when reading or maintaining pillars.');
+  await managed(store,'.github/copilot-instructions.md','Common Ground repository knowledge rules are in [AGENTS.md](../AGENTS.md). Follow its Common Ground section when reading or maintaining pillars.\nCode is the source of truth; these notes only help navigation.\nFor repository questions, consult Common Ground and verify source. If knowledge is missing or stale, answer from source and prompt to update it.\nIf the developer disputes the code, clarify current versus intended behavior together. Record only verified, durable knowledge under the note-taking rules.');
   await managed(store,'.gitignore','.common-ground/local/');
   await fs.mkdir(path.dirname(configFile),{recursive:true});
   if (configText !== nextConfig) await fs.writeFile(configFile,nextConfig);
