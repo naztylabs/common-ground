@@ -1,127 +1,82 @@
-export const bootstrapNext = 'Review .common-ground/local/bootstrap.json against current source and READMEs; remove generated/cache candidates and refine pillars, chapters and paths. Present the boundaries in plain language for developer approval. Only after approval, run cground approve .common-ground/local/bootstrap.json --approve to create knowledge.json, then seed verified facts with developer direction. Continue the main task from source meanwhile; no task was started, so do not assess, propose facts or finish until start returns a taskId.';
+export const bootstrapNext = {action:'review-map-and-facts',approvalRequired:true,
+  command:'cground bootstrap PLAN.json --dry-run',schema:'cground schema bootstrap',
+  guide:'.common-ground/START_HERE.md'};
 
 export const rules = `## Common Ground
 
 Code is the source of truth; these notes only help navigation.
 
-For repository questions, consult Common Ground and verify source. If knowledge is missing or stale, answer from source and prompt to update it. Derive temporary state live; read directory READMEs.
+For repository questions, use cground lookup with a path or short query for facts and source locations. Lookup is stateless; default freshness is not checked. Open source and directory READMEs before relying on claims. Use --verify when live freshness matters. Derive temporary state live.
 
-If the developer disputes the code, clarify current versus intended behavior together. Record only verified, durable knowledge under the note-taking rules.
+Keep the developer task primary. After edits, cground assess --touched checks only this task's actual paths, including additions/deletions. No matching source change means no fact review or task bookkeeping; still review relevant local documentation. Source drift means check the affected claims, not automatic revision. Follow additional semantic connections found in source.
 
-Keep the developer task primary. Use task_context start once. Without a taskId, follow its setup guidance and START_HERE.md; continue from source. Otherwise read_knowledge for relevant chapters (evidence:true), then assess touched paths. Reuse responses only within this task; refresh:true after context loss.
+If corrections are needed, request assess --review. Before editing, read [.common-ground/POLICY.md](.common-ground/POLICY.md), every required chapter page and the listed sources/docs. prepare-patch works without taskId; complete review and conflict checks remain mandatory. Summarize actual corrections as before → after, why, source links and recommendation.
 
-Quietly correct verified existing facts in affected scope. Before editing, read [.common-ground/POLICY.md](.common-ground/POLICY.md), the whole required chapters, source and related documentation. Default to no write. Queue new facts with propose_facts; finish the task before presenting the approval batch. New facts, chapters, pillars and ownership expansion need developer direction. Library-local detail belongs in its README; record durable patterns, not inventories or debugging history. Facts allow 2,000 characters for one coherent, source-backed claim.
+Task contexts are optional for aggregated reporting and deferred additions. Start one when needed; propose_facts queues drafts, finish after the main task, then ask "Ready to make the following facts available to the team?" New facts, chapters, pillars and ownership expansion need developer direction. If started, finish the task once; reuse cached responses only within it and refresh:true after context loss.
 
-Call task_context finish at completion only with a taskId. Summarize corrections as before → after, why, source links and recommendation; never require JSON review. Present pending facts with evidence and ask "Ready to make the following facts available to the team?" before admission; no change means no Common Ground report. Ask immediately only if uncertainty blocks the main task; never guess. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
+Default to no write. Keep durable patterns, not debugging history; library-local detail belongs in its README. Resolve disputed behavior with the developer. No change means no Common Ground report. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
 `;
 
 export const policy = `## Common Ground
 
-Start at [START_HERE.md](START_HERE.md). Use the compact task workflow by default; the full MCP profile retains the original individual tools. Common Ground is a cache of the codebase, never authority over source or developer instructions.
+Code is the source of truth. Notes cache durable repository knowledge; matching quotes and hashes establish mechanical consistency, not semantic truth.
 
-### Reading
+### Reading and writing invariants
 
-- Notes supplement codebase reading; they never replace it. Code is the source of truth. Open the source files behind a fact before relying on or changing it.
-- Navigate ownership_map → pillar chapter index → relevant chapter pages → facts and source. Signal matches are hints, not diagnoses. Read pillar_graph and fact dependencies when work crosses subsystems.
-- Read a directory's README when present, plus applicable ancestor, sibling, child, and referenced documentation. Explain facts to people in plain language with evidence; disclose stale or uncertain claims.
-- Branches, submodule checkouts, current failures, and other point-in-time state must be derived live on every check. Never cache them as durable facts.
-
-### Scope and writing
-
-- Cache verified subsystem behavior, architecture, connections, build/deploy mechanics, established conventions, and the commands that drive the code. Describe patterns that change how someone reasons about the subsystem, not inventories.
-- Exclude bugs, open issues, work to fix, incident postmortems, debugging narratives, activity logs, generic technology explainers, secrets, and anything not verified against current source.
-- Library-local detail belongs in that library's README. Keep subsystem-wide reasoning in the existing pillar/chapter and reference local documentation where useful; do not duplicate inventories.
-- Verified means you opened and read the relevant source during this session. Memory, guesses, unsupported inference, and cached quotes do not establish verification. Exact quotes and hashes cannot prove semantic truth.
-- Default to no note write. Silence is valid: an unwritten fact costs nothing; a wrong one costs every reader. When uncertain, explicitly state what cannot be verified. Ask immediately only when it blocks the developer task; otherwise collect the question for task completion. Never guess or silently accept a contradiction.
-- Classify into existing pillars and chapters first. Never add a pillar unless a new, uncovered, standalone subsystem warrants it and the developer approves. Chapters, ownership expansion, and fact admission also require developer direction; approval flags do not supply that direction.
-
-### Maintenance and correction
-
-- Touch it, own it: before adding or changing a fact, skim every page of the whole logical chapter, then review affected sibling/child chapters and reference files. Use review_plan and review_checklist; include all required dependency/dependent chapter reviews.
-- In that same edit, merge verified near duplicates, remove superseded content, and tighten narrative in the affected scope. Use explicit maintenance actions and reasons, preserving existing IDs for corrections. Repair affected references and dependency links in the same transaction. Do not clean up unrelated subsystems.
-- If an authorized code change contradicts a fact, chapter, pillar, or documentation claim, correction is mandatory in the same edit. Correct in place; never retain old and new contradictory versions or append a contradiction below the original. If boundaries themselves are wrong, raise the ownership change with the developer.
-- Corrections trigger the same full-file, sibling, child, and reference review as other touches. If the right version cannot be verified, say so explicitly and ask at the appropriate task boundary; do not publish a guessed resolution.
-- No note change does not end the check. Re-read the modified directory README and relevant documentation and ensure they remain valid, even when prepare_update returns noop.
-- Any developer may request cground tidy all, PILLAR, PILLAR/CHAPTER, or PILLAR/CHAPTER/FACT (a unique fact ID also works). This creates a scoped plan and local tidyId; the calling agent reads source and submits the verified cleanup. It neither invokes a model nor edits knowledge automatically. MCP tidy_plan only previews scope. The cground MCP tool exposes every CLI workflow: operation:help lists operations and help with args.operation returns its input schema. Use check or validate with a target; stale results list affected pillars, chapters and facts and ask "Start automatic cleanup?". With developer-requested cleanup, cleanup:true returns a scoped tidyId. The calling agent must verify source, submit reviewed corrections, then validate again. Use tidy for an explicitly requested broader cleanup.
-- For prepare_update, attest verification.sourceFiles and verification.documentFiles only after reading them this session (or verifying a deletion live). Use review_checklist for required paths and include newly cited evidence. Facts may contain up to 2,000 characters. Keep one coherent claim with enough context, conditions, and consequences to be useful; do not pad to the limit. Every assertion must be source-backed and free of temporary state.
-- Submit one complete transaction for affected chapters. Only changed chapters are rewritten; unchanged reviews use ignored local state. Existing correct facts stay unchanged unless explicit maintenance is justified. Never skip required tests based on stored notes.
-- Agents execute approved bootstrap/admission operations. Apply the same reading, verification, deduplication, and README checks before seed or admit. Commit durable knowledge and documentation with the code; keep .common-ground/local/ ignored.
+- Open relevant source and directory, ancestor, sibling, child and referenced documentation this session. Derive temporary state live. Do not record bugs, debugging history, activity logs, secrets or guesses.
+- Default to no write. Unrelated work and unchanged facts produce no shared knowledge changes. Library-local detail belongs in its README. Each fact holds one coherent, source-backed claim of at most 2,000 characters.
+- Review every existing fact in each required logical chapter before revision. Follow dependency and dependent links, request the review checklist, and verify all required source and documentation. A verification declaration does not prove an agent read or understood a file.
+- Correct verified contradictions in the affected scope quietly, preserving IDs. Merge duplicates and remove superseded claims with explicit reasons and repaired references. Never clean up unrelated responsibilities. Ask if uncertainty blocks the task; otherwise collect it for completion.
+- New facts, chapters, pillars and ownership expansion require developer direction. A new pillar also needs an uncovered standalone responsibility. Approval flags declare approval of the exact content; they never grant autonomous permission. Boundary approval does not approve facts.
+- Chapter paths define non-overlapping ownership. Fact source scopes stay inside ownership; supporting evidence may cite other repository files and is tracked for freshness. Exact evidence, safe paths and valid dependencies remain mandatory.
+- Publish a complete reviewed transaction. Source or registry conflicts reject publication. Unchanged reviews use ignored local receipts; only changed chapters are rewritten. Never bypass required tests based on notes.
 
 ### Quiet task workflow
 
-- The developer task comes first. Use task_context start once per coding task, with known paths or a short routing signal. Read only relevant chapter pages and source. Skip knowledge calls for conversation that does not need repository knowledge.
-- Existing facts in the affected scope have standing permission for verified corrections, merges, removals, and tightening. Maintain them quietly while doing authorized work. Never run an unrelated tidy or expand ownership without developer direction.
-- Call task_context assess with the files this task actually touched, including new and deleted files. Do not use the whole dirty Git tree as your own work. A no-fact-review result still requires the relevant README/documentation check. Path matching cannot establish semantic independence: follow additional references uncovered in source.
-- Before any knowledge edit, read this policy and every page of each required logical chapter. Use read_knowledge kind review/checklist and chapter with evidence:true to batch records. reviewedAllFacts:true declares review of the whole expected revision; it does not permit a partial skim. prepare_patch sends replacements/removals only; it retains all other facts and applies the same validation as prepare_update.
-- Keep new verified fact candidates in propose_facts during work. This creates ignored local drafts only. Most new components need only their README; propose a fact only when it changes subsystem reasoning. Do not interrupt the main task for fact admission.
-- After the main task and its checks, call task_context finish once, read all result pages, and consolidate the final message. Present a compact delta of actual corrections already applied in the Git working tree: pillar/chapter, before → after, reason, source links and a keep/reverify recommendation. Present all proposed additions together with their evidence and ask: "Ready to make the following facts available to the team?" Wait for explicit approval before admission. Do not send the developer to knowledge.json or ask them to edit it. Hide unchanged facts, hashes and revision churn. Use task completion details for this task, and cground review (or MCP review) for changes against Git HEAD; --staged selects the index. Read every result page and fetch exact changed quotes with --evidence only when needed. State uncertainty instead of recommending an unsupported approval. For pending pillars/chapters, explain the responsibility, boundaries, ownership paths, rationale and source support before asking for approval. Review summaries reduce presentation tokens; complete chapter and source verification is still mandatory. Do not report routine lookups, checks, no-op reviews, or empty outcomes. Mention unresolved contradictions or failed maintenance explicitly at completion; ask earlier only if needed to complete the main task correctly.
-- After explicit developer approval, read proposed facts (kind proposals), the proposal-review checklist, all required existing chapters, sources and documentation. Then run cground accept-facts TASK_ID REVIEW.json --approve, or the cground MCP accept-facts operation with taskId, review and approved:true. REVIEW.json includes reviews [{chapterId, expectedRevision, reviewedAllFacts:true}] and verification {sourceFiles, documentFiles}. The whole queued batch is validated before one registry write. If approval covers only some entries, use cground drop-facts TASK_ID FACT_KEY... to discard the rest first. A changed draft needs fresh source verification and a new task/approval batch.
-- Pending facts are never used as authoritative knowledge. Dependencies on other pending drafts are not supported; admit the prerequisite after approval first. Approval flags are declarations of developer direction, not a permission or security boundary; never treat a flag as approval.
-- Reuse unchanged responses only within the same live task context. An unchanged/reference response means use the previously returned context, not that source was read. Request refresh:true after context loss, or start a new task for a new agent/session. Live source and dependency fingerprints invalidate reuse. Never cache branch/submodule state as knowledge.
-- Common Ground is invoked by the calling agent, not an autonomous watcher. If unavailable, continue safe main-task work and report unresolved maintenance at completion. Do not claim a correction succeeded when a tool failed. The MCP host controls its own tool approval prompts.
+Use stateless lookup for relevant facts and source paths; default freshness is not checked. After edits, assess actual task-touched paths (including additions and deletions). A matching unchanged source requires no fact review; changed source requires checking affected claims, not automatic revision. Review local/ancestor documentation relevant to the edit and follow semantic connections found in source. Empty touched paths require no review. Use assess --review when a correction needs complete chapters and verification paths. Neither command creates task state or requires finish.
 
-Full-profile tools: start_here, ownership_map, pillar_graph, tidy_plan, review_checklist, list_pillars, list_chapters, read_chapter, read_fact, search_knowledge, review_plan, prepare_update, commit_update, cground.
-Validation: cground validate [all|PILLAR|PILLAR/CHAPTER|PILLAR/CHAPTER/FACT] preserves shared knowledge and refreshes the ignored local Markdown view; omitted targets mean all. It checks structure, exact evidence, and freshness, not semantic truth.
+Before correcting notes, read this policy and every page of all required chapters. prepare_patch attests reviewedAllFacts:true and the expected revision, then retains unchanged facts. Use prepare_patch without taskId and commit_update for verified corrections. Task contexts remain optional for aggregate reporting and deferred additions. Source or revision conflicts require fresh review.
 
-CLI: cground start "build failed"; cground owners --path PATH; cground graph PILLAR; cground tidy TARGET; cground review-checklist CHAPTER --touched PATH.
+For new facts, start a task when needed and queue them with propose_facts; pending drafts are never authoritative. Finish the developer task and checks, then finish any task context you started. Reuse cached task responses only within that task; refresh:true after context loss. Summarize actual corrections as before → after, why, source links and keep/reverify recommendation. Present additions together and ask "Ready to make the following facts available to the team?" Wait for explicit approval, read proposal-review and required chapters/source, then accept-facts with complete reviews and verification. Drop rejected entries first. Changed drafts need fresh verification and approval. Never require developer JSON review. With no changes or pending questions, give no Common Ground report.
+
+Use tidy only for developer-requested cleanup. It returns a local tidyId; the calling agent reads source and submits verified corrections. Common Ground runs no model or autonomous watcher. If unavailable, continue safe task work and report unresolved maintenance; never claim a failed write succeeded. Host tool approval settings remain authoritative.
+
+See START_HERE.md for commands and state-specific setup. Keep knowledge.json and managed guidance tracked; local/ is disposable and ignored. Never remove another active task's files.
 `;
 
 export const startGuide = `# Start Here — Common Ground
 
-Common Ground is an open-source framework for shared repository knowledge. Its notes cache verified repository patterns; code is the source of truth. Follow [AGENTS.md](../AGENTS.md); read [POLICY.md](POLICY.md) before edits.
+Common Ground is an open-source framework for shared, Git-backed repository knowledge. The CLI and local MCP server are its interfaces. Follow AGENTS.md and read [POLICY.md](POLICY.md) before knowledge edits.
 
 ## First use: complete setup
 
-cground init installs guidance and MCP configuration, then writes a candidate map to .common-ground/local/bootstrap.json. It deliberately leaves knowledge.json absent until the developer approves the map; initialization alone does not make the knowledge workflow ready.
+Run cground init. It installs guidance/configuration and writes a candidate map to .common-ground/local/bootstrap.json without creating knowledge.json. Read source and READMEs, refine boundaries and verify facts. Discovery labels are hints, not facts.
 
-1. Read the bootstrap proposal, repository source and READMEs. Refine responsibility boundaries, chapters and ownership paths; remove generated files and cache directories. Explain the proposed map in plain language. The agent authors the JSON; the developer approves the boundaries.
-2. After developer approval, run cground approve .common-ground/local/bootstrap.json --approve from the repository root. This creates .common-ground/knowledge.json with empty chapters. The flag records approval; it does not grant it.
-3. Verify facts against source and documentation. Present the facts and evidence, ask "Ready to make the following facts available to the team?", and wait for approval. Then populate approved chapters using cground seed PILLAR/CHAPTER FACTS.json --approve with developer direction. Run task_context start again to begin the normal workflow.
+Use cground schema bootstrap for the input schema and cground bootstrap --help --example for a synthetic payload. Submit pillars plus batches of chapterId/facts to cground bootstrap PLAN.json --dry-run. Preflight checks the whole transaction and reports source-file counts without writes. Present boundaries and facts in plain language; distinguish their approvals and ask "Ready to make the following facts available to the team?" Only after developer approval, apply the same payload with --approve --preflight TOKEN. Source or payload changes require a new dry run and review. The receipt records the approved content token; it is not proof of identity or semantic truth.
 
-Before approval, task_context start returns state: bootstrap-required, guidance and no taskId. Continue the developer's main task from source; explain the pending setup and present the reviewed map at completion. Do not call assess, propose_facts or finish without a taskId. If state is not-initialized, run cground init first. If local/bootstrap.json was removed and no registry exists, init recreates the proposal. Never create an empty knowledge.json just to suppress a setup error.
+The separate workflow remains available: cground approve .common-ground/local/bootstrap.json --approve approves boundaries only. Facts still require approval. cground seed-batch BATCH.json --dry-run checks multiple approved empty chapters together; apply with --approve --preflight TOKEN. Single-chapter cground seed PILLAR/CHAPTER FACTS.json --approve also works. JSON input commands accept --stdin instead of a filename, or - as the filename. cground schema seed shows the facts-array shape.
+
+A bootstrap-required or not-initialized response has no taskId. Continue the main task from source; do not assess, propose facts or finish until task_context start returns a taskId. Never fabricate an empty registry to suppress setup. After approved setup, use lookup; start a task only when deferred additions or aggregate reporting need one. Run init to recreate a missing proposal or refresh managed guidance; existing registries are preserved.
 
 ## My build failed. Where do I go?
 
-1. Inspect the actual failure, current checkout and directory README. Never cache temporary state or the debugging story.
-2. Call task_context start with paths from the error (or a short signal). Paths route directly to owning chapters; signal matches are only keyword hints. With no match, inspect local documentation/source; do not invent an owner.
-3. Use read_knowledge kind chapters with the pillar ID if you still need its index, or kind chapter with the returned chapter ID. evidence:true batches complete facts. Open their source this session. Read only relevant pages for navigation; read every page of required chapters before a knowledge edit.
-4. Use kind graph for recorded cross-pillar dependencies. Direction is dependent to dependency. A missing edge means unrecorded, not independent.
-5. Do the developer task. After edits, assess actual task-touched paths, including new/deleted files. Correct affected existing facts quietly using prepare_patch and commit_update; full review and source/README verification still apply. A no-fact-review result still requires checking documentation.
-6. Queue worthwhile new fact candidates locally with propose_facts. Finish the main task and its checks, then task_context finish. Report meaningful corrections once, and group all additions/questions for developer review. If nothing changed or needs attention, say nothing about Common Ground.
+1. Inspect the failure, current checkout and directory README. Use cground lookup --path PATH or a short query. It returns a few facts and source paths without task state; --verify checks selected facts and upstream evidence. Default freshness is not checked.
+2. Do the developer task. Run cground assess --touched PATH1,PATH2 using only its actual changed paths. It compares source fingerprints for matching facts. No-fact-review needs only relevant documentation/source review; source-review-required lists claims to verify. Source drift does not prove a claim false.
+3. If a claim needs correction, rerun assess with --review for paginated complete chapters, evidence and verification paths. Read every required page and source/document before preparing. cground prepare-patch PATCH.json accepts no taskId for a standalone correction; cground commit PROPOSAL_ID rechecks conflicts. Summarize the actual correction directly. No start/finish ceremony is required.
+4. For deferred additions or aggregate correction reporting, the original task_context workflow remains available. Start once when needed, queue new facts locally, finish after the main task and tests, and present one approval batch. Complete whole-chapter review and explicit admission approval still apply.
 
-All CLI workflows are also available through the cground MCP tool in both profiles. Call operation:help for the catalog and help with args.operation for its input schema. Approval operations require approved:true after actual developer approval; never infer permission from the flag.
 
-For cleanup explicitly requested by a developer: cground tidy all, PILLAR, PILLAR/CHAPTER, or PILLAR/CHAPTER/FACT creates a local tidyId and scope. The calling agent verifies and edits; no model or autonomous job runs inside Common Ground.
+## Commands and review
 
-## Review without editing JSON
+Every command supports --help without running it. cground schema OPERATION exposes its input shape; the MCP equivalent is cground operation:help with args.operation. Both MCP profiles expose all workflows through cground; the default profile also has five compact workflow tools, while --profile full retains the original detailed tools. Approval flags never override host approval settings.
 
-Ask the agent to summarize changed knowledge: before → after, why, source links, and a keep/approve/reverify recommendation. Verified corrections are already applied; additions and new ownership wait for explicit approval. Use cground review [TARGET] or the MCP review operation for a paginated delta against HEAD; use --staged before a commit. Revision/fingerprint-only changes are omitted. This is a review aid, not proof of semantic truth. Never ask a developer to hand-edit knowledge.json.
+cground validate [TARGET] checks all knowledge, a pillar, chapter or fact. It reports failures by default; --all-results includes passing rows. Follow nextCursor when present. Exit 1 means stale, invalid or unpopulated. Checks refresh the ignored Markdown reference without changing shared facts. --cleanup y requires developer-requested cleanup and returns a local tidyId for the calling agent to verify and submit corrections. Validation is not semantic verification.
 
-## Human-readable knowledge
+cground review [TARGET] summarizes meaningful changes against HEAD; --staged reviews the index and --evidence includes changed quotes. Explain before → after, why, source links and a keep/approve/reverify recommendation. Never ask developers to edit JSON. Revision-only churn is omitted.
 
-Open [local/knowledge.md](local/knowledge.md) for a complete generated view of the shared registry, including evidence and dependencies. Init creates it; CLI validate/tidy and successful knowledge writes refresh it only when content changes. It is Git-ignored, excludes pending proposals, and is not proof of current source validity. Edit knowledge through the reviewed workflow, not this disposable export.
+cground export refreshes [local/knowledge.md](local/knowledge.md), the complete generated reference. It excludes pending drafts and is not proof of source validity. Successful knowledge writes also refresh it. Mutation receipts are compact; --verbose on approve, approve-chapters, seed and admit returns full objects.
 
-## Validate without changing knowledge
+The advisory pre-commit hook checks staged knowledge and sources, reminds the developer to review, and allows the commit. It never approves or changes facts. Use cground hook mute/unmute for this checkout; existing hook managers can call cground hook check.
 
-cground validate defaults to all; a pillar, chapter, qualified fact, or unique fact ID narrows the check. Exit 1 means invalid, stale, or unpopulated knowledge. Read the global summary and follow nextCursor for every result page. By default no shared facts or review receipts are written; the ignored local Markdown view is refreshed. Stale results list affected pillar/chapter/fact IDs and offer cleanup. CLI --cleanup y or MCP cleanup:true issues a scoped local tidyId only when cleanup was requested by the developer; the calling agent must perform and submit the verified review. A successful check is not proof of semantic truth.
-
-## CLI and compatibility
-
-Every command supports --help or -h without running it, including cground hook --help and cground task assess --help. Use --json for scripts and cground export to refresh the ignored Markdown reference. Check and validate are equivalent.
-
-cground task start --touched PATH1,PATH2
-cground task assess TASK_ID --touched PATH1,PATH2
-cground read-knowledge REQUEST.json
-cground prepare-patch PATCH.json
-cground commit PROPOSAL_ID
-cground propose-facts TASK_ID PILLAR/CHAPTER FACTS.json
-cground task finish TASK_ID
-
-After explicit approval and full review: cground accept-facts TASK_ID REVIEW.json --approve. See POLICY.md for the review format and remaining admission rules. Reject unwanted drafts with cground drop-facts TASK_ID FACT_KEY... before admitting the batch.
-
-The default MCP profile exposes six tools. Existing detailed CLI commands still work; cground serve --profile full exposes the original thirteen MCP tools plus the cground operations tool. Both profiles expose all framework workflows through the cground tool. Call operation:help for the catalog, then help with args.operation for the exact input schema. Neither profile overrides host tool approval settings.
-
-Before sharing, ask the agent for a compact knowledge review. cground review shows meaningful pillar/chapter/fact changes against HEAD; cground review --staged shows the staged version. Task completion provides before/after corrections and pending additions. The agent explains why, links source, states uncertainty and recommends keep/approve/reverify. Developers approve the plain-language proposal; the framework manages JSON. The advisory pre-commit hook checks staged knowledge and sources, reminds developers about review, and allows the commit. It does not approve or edit facts. Notifications are on by default; use cground hook mute to suppress them in this checkout and cground hook unmute to restore them. With an existing hook manager, add cground hook check to its pre-commit hook.
-
-Commit knowledge.json, this guide and POLICY.md. Keep local/ ignored. Local task state can be removed after the task and admission review are complete; never remove another active task's files.
+Keep knowledge.json, this guide and POLICY.md in Git. Keep local/ ignored and retain active tasks until their review is complete. Detailed contracts and request formats are in docs/pillar-contract.md and docs/quiet-workflow.md in the framework repository.
 `;

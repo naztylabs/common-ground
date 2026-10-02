@@ -331,7 +331,7 @@
             "src/paging.ts",
             "docs/quiet-workflow.md"
           ],
-          "revision": 6,
+          "revision": 7,
           "facts": [
             {
               "id": "stdio-transport",
@@ -409,7 +409,7 @@
                 },
                 {
                   "path": "src/navigation.ts",
-                  "quote": "freshness: await store.status(item.chapterId, registry)"
+                  "quote": "freshness: await store.status(item.chapterId, registry,cache)"
                 }
               ],
               "sourceScope": [
@@ -439,9 +439,9 @@
             }
           ],
           "sources": {
-            "src/cli.ts": "606b202b469b58b13605419285490806f38b53fa78815720906452f7248ed294",
-            "src/navigation.ts": "6db220c24e01d28721f2f3a260bb5e36d603f461036d558f6c222c6436aa6cd8",
-            "src/server.ts": "947c292d0bbdd2e2957bfa90b6f21a290c7d67e68efb4a2b01a4af8c779530ce"
+            "src/cli.ts": "1a2e839df86dad48df8043fcdf67bc89f20223ccec08ce40a43ab56f101da825",
+            "src/navigation.ts": "ad5fa91f575c6f087157cf894606e2fb7c3ffb90e25c7da1ef1ce99e547902c2",
+            "src/server.ts": "9e68fae0905a54985e61964ee9ce1816294caa32dddebacdda202afdf6cd75a7"
           },
           "dependencyFingerprints": {
             "knowledge-engine/overview/complete-review": "99e066b2c3ed5475649821a261d448511ff5e80490749bf4fcb3451890f7296f",

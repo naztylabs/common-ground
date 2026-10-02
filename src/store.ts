@@ -1,4 +1,4 @@
-import { promises as fs } from 'node:fs';
+import { createReadStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { Registry, LegacyRegistry, PillarDefinition, ChapterDefinition, Chapter, Fact, Update, relativePath, unique, type RegistryRecord, type ChapterRecord, type Definition, type UpdateRequest } from './model.js';
@@ -91,17 +91,24 @@ export class Store {
     for (const scope of scopes.length ? scopes : ['']) { if (scope) await this.safe(scope, true); await visit(scope); }
     return { files: [...files].sort(), truncated };
   }
-  async snapshot(pillar: Pick<ChapterRecord, 'paths' | 'facts'>) {
+  async sourceHash(relative:string) {
+    const file=await this.safe(relative);
+    if(!(await fs.stat(file)).isFile())throw new Error(`Source is not a regular file: ${relative}`);
+    const digest=createHash('sha256');
+    for await(const chunk of createReadStream(file))digest.update(chunk);
+    return digest.digest('hex');
+  }
+  async snapshot(pillar: Pick<ChapterRecord, 'paths' | 'facts'>, cache?:Map<string,Promise<string>>) {
     const scopes = pillar.facts.flatMap(f=>f.sourceScope);
     const scan = scopes.length ? await this.walk([...new Set(scopes)], 10000) : {files:[],truncated:false};
     if (scan.truncated) throw new Error('Chapter scope exceeds beta scan limit (10,000 entries); narrow its scope.');
     const sources: Record<string,string> = {};
     for (const rel of [...new Set([...scan.files, ...pillar.facts.flatMap(f => f.evidence.map(e => e.path))])].sort()) {
       if (rel.split('/').some(p => ignored.has(p) || p.startsWith('.env'))) throw new Error(`Excluded evidence path: ${rel}`);
-      const file = await this.safe(rel);
-      const stat = await fs.stat(file);
-      if (!stat.isFile() || stat.size > 2_000_000) throw new Error(`Evidence/scope file exceeds beta limits: ${rel}`);
-      sources[rel] = hash(await fs.readFile(file));
+      // Cache is explicitly request-scoped; mutation and publication calls do not supply one.
+      let pending=cache?.get(rel);
+      if(!pending){pending=this.sourceHash(rel);cache?.set(rel,pending);}
+      sources[rel]=await pending;
     }
     return sources;
   }
@@ -110,8 +117,6 @@ export class Store {
     for (const fact of pillar.facts) {
       for (const scope of fact.sourceScope) if (!pillar.paths.some(p=>scope===p||scope.startsWith(`${p}/`))) throw new Error(`Fact source scope outside chapter: ${scope}`);
       for (const evidence of fact.evidence) {
-      if (!fact.sourceScope.some(p=>evidence.path===p||evidence.path.startsWith(`${p}/`))) throw new Error(`Evidence outside fact source scope: ${evidence.path}`);
-      if (!pillar.paths.some(p => evidence.path === p || evidence.path.startsWith(`${p}/`))) throw new Error(`Evidence outside chapter scope: ${evidence.path}`);
       const file = await this.safe(evidence.path);
       if ((await fs.stat(file)).size > 2_000_000) throw new Error('Evidence file too large');
       if (!(await fs.readFile(file, 'utf8')).includes(evidence.quote)) throw new Error(`Evidence quote not found: ${fact.id} in ${evidence.path}`);
@@ -145,24 +150,24 @@ export class Store {
     const keys=new Set(this.chapter(registry,key).facts.flatMap(f=>this.upstreamFacts(registry,`${key}/${f.id}`,index)));
     return Object.fromEntries([...keys].sort().map(k=>[k,hash(stable(index.get(k)!.fact))]));
   }
-  async context(registry: RegistryRecord, keys: string[]) {
+  async context(registry: RegistryRecord, keys: string[], cache?:Map<string,Promise<string>>) {
     const result: Record<string, unknown> = {};
     for (const key of keys) {
       const chapter=this.chapter(registry,key);
-      result[key]={chapterHash:hash(stable(chapter)),snapshot:await this.snapshot(chapter)};
+      result[key]={chapterHash:hash(stable(chapter)),snapshot:await this.snapshot(chapter,cache)};
     }
     return result;
   }
-  async status(key: string, registry?: RegistryRecord) {
+  async status(key: string, registry?: RegistryRecord, cache?:Map<string,Promise<string>>) {
     const reg=registry??await this.read(); const chapter=this.chapter(reg,key);
     try {
-      const current=await this.snapshot(chapter);
+      const current=await this.snapshot(chapter,cache);
       const changed=[...new Set([...Object.keys(current),...Object.keys(chapter.sources)])].filter(p=>current[p]!==chapter.sources[p]);
       const dependencies=Object.keys(this.dependencyFingerprints(reg,key));
       let dependencyDrift=!same(chapter.dependencyFingerprints,this.dependencyFingerprints(reg,key));
       for(const dep of dependencies) {
-        const entry=this.fact(reg,dep);const current=await this.snapshot({paths:entry.fact.sourceScope,facts:[entry.fact]});
-        const baseline=Object.fromEntries(Object.entries(entry.chapter.sources).filter(([p])=>entry.fact.sourceScope.some(s=>p===s||p.startsWith(`${s}/`))));
+        const entry=this.fact(reg,dep);const current=await this.snapshot({paths:entry.fact.sourceScope,facts:[entry.fact]},cache);
+        const baseline=Object.fromEntries(Object.entries(entry.chapter.sources).filter(([p])=>entry.fact.sourceScope.some(s=>p===s||p.startsWith(`${s}/`))||entry.fact.evidence.some(e=>e.path===p)));
         if(!same(current,baseline))dependencyDrift=true;
       }
       let locallyReviewed=false;
@@ -170,7 +175,7 @@ export class Store {
       try {
         await this.safe(`.common-ground/${reviewName}`);
         const review=JSON.parse(await fs.readFile(this.file(reviewName),'utf8'));
-        locallyReviewed=same(review.context,await this.context(reg,Object.keys(review.context))) && this.related(reg,key).every(k=>Object.hasOwn(review.context,k));
+        locallyReviewed=same(review.context,await this.context(reg,Object.keys(review.context),cache)) && this.related(reg,key).every(k=>Object.hasOwn(review.context,k));
       } catch(e:any) { if(e.code!=='ENOENT')throw e; }
       return {chapterId:key,revision:chapter.revision,status:!chapter.facts.length?'unpopulated':(changed.length||dependencyDrift)&&!locallyReviewed?'needs-review':'evidence-unchanged',locallyReviewed,changedPaths:changed,dependencyDrift};
     } catch(e:any) {return {chapterId:key,revision:chapter.revision,status:'needs-review',error:e.message};}
@@ -208,6 +213,59 @@ export class Store {
       for(const input of definitions){const def=ChapterDefinition.parse(input);for(const p of def.paths)await this.safe(p);pillar.chapters.push({...def,revision:1,facts:[],sources:{},dependencyFingerprints:{}});}
       await this.persist(registry);return pillar;
     });
+  }
+  /** Validate an entire initial map or empty-chapter batch before one shared write. */
+  async bootstrap(definitions: Definition[] | undefined, batches: {chapterId:string;facts:unknown[]}[], dryRun:boolean, expected?:string) {
+    const execute=async()=>{
+      let original:RegistryRecord|undefined;
+      try { original=await this.read(); } catch(e:any) { if(e.code!=='ENOENT')throw e; }
+      if(definitions && original)throw new Error('Bootstrap requires an absent registry; use seed-batch for approved empty chapters.');
+      if(!definitions && !original)throw new Error('Approve boundaries first or use bootstrap with pillars.');
+      const registry:RegistryRecord=original?structuredClone(original):{schemaVersion:2,pillars:definitions!.map(input=>{
+        const def=PillarDefinition.parse(input);
+        return {...def,chapters:def.chapters.map(c=>({...c,revision:1,facts:[],sources:{},dependencyFingerprints:{}}))};
+      })};
+      unique(batches.map(b=>b.chapterId),'batch chapters');
+      for(const batch of batches){
+        const chapter=this.chapter(registry,batch.chapterId);
+        if(chapter.facts.length)throw new Error('Seed is only for an approved, empty chapter.');
+        chapter.facts=Chapter.shape.facts.parse(batch.facts);
+      }
+      this.validateRegistry(registry);
+      if(definitions && this.chapters(registry).some(({chapter})=>!chapter.facts.length))throw new Error('Bootstrap requires facts for every chapter; use approve for boundary-only setup.');
+      const keys=batches.map(b=>b.chapterId);
+      const required=[...new Set(keys.flatMap(key=>this.related(registry,key)))];
+      const counts:Record<string,number>={};
+      for(const key of required){
+        const chapter=this.chapter(registry,key);
+        for(const p of chapter.paths)await this.safe(p);
+        await this.validateFacts(chapter);
+        if(keys.includes(key)){
+          chapter.sources=await this.snapshot(chapter);
+          chapter.dependencyFingerprints=this.dependencyFingerprints(registry,key);
+          counts[key]=Object.keys(chapter.sources).length;
+        }
+      }
+      // Include live upstream sources as well as the chapters being seeded in conflict checks.
+      const context=await this.context(registry,required);
+      for(const key of keys)if(!same(this.chapter(registry,key).sources,(context[key] as {snapshot:unknown}).snapshot))throw new Error('Source changed during bootstrap.');
+      const token=hash(stable({original:original??null,registry,context}));
+      if(!dryRun){
+        if(!expected || expected!==token)throw new Error('Preflight conflict: rerun --dry-run and review the current payload and sources.');
+        // Repeat source checks immediately before publication, under the writer lock.
+        if(!same(context,await this.context(registry,required)))throw new Error('Source changed during bootstrap.');
+        let current:RegistryRecord|undefined;
+        try { current=await this.read(); } catch(e:any) { if(e.code!=='ENOENT')throw e; }
+        if(!same(original??null,current??null))throw new Error('Registry changed during bootstrap.');
+        await this.persist(registry);
+      }
+      return {dryRun,validation:'structure, exact quotations and freshness; not semantic verification',preflight:token,
+        approvalRequired:dryRun?{boundaries:!!definitions,facts:true}:false,
+        approved:dryRun?undefined:{boundaries:!!definitions,facts:true,content:token},
+        chapters:Object.keys(counts),factCount:batches.reduce((n,b)=>n+b.facts.length,0),sourceFileCounts:counts,
+        outputPath:'.common-ground/knowledge.json',next:dryRun?'Review boundaries and facts with the developer, then apply this payload with --approve and --preflight.':'Start a task context.'};
+    };
+    return dryRun?execute():this.lock(execute);
   }
   async seed(key: string, facts: unknown) {
     return this.lock(async()=>{
@@ -340,7 +398,7 @@ export class Store {
         if(!fact||same(fact,review.facts.find(f=>f.id===id)))throw new Error(`Invalid invalidated fact: ${id}`);
         const maintenance=review.maintenance?.find(m=>m.factId===id);
         if(maintenance) {
-          const anchored=request.touchedPaths.some(p=>required.some(key=>this.chapter(registry,key).paths.some(s=>p===s||p.startsWith(`${s}/`))));
+          const anchored=request.touchedPaths.some(p=>required.some(key=>[...this.chapter(registry,key).paths,...this.chapter(registry,key).facts.flatMap(f=>f.evidence.map(e=>e.path))].some(s=>p===s||p.startsWith(`${s}/`))));
           if(!request.tidyId&&!anchored)throw new Error('Maintenance requires relevant touched paths or a developer-requested tidyId.');
           continue;
         }
@@ -349,7 +407,7 @@ export class Store {
         if(!affected.has(`${review.chapterId}/${id}`))throw new Error(`Fact is outside the selected dependency review: ${id}`);
         const upstreamChanged=this.upstreamFacts(registry,`${review.chapterId}/${id}`).some(dep=>{
           const entry=this.fact(registry,dep);const depReview=request.reviews.find(r=>r.chapterId===entry.chapterId);
-          return depReview?.invalidatedFactIds.includes(entry.fact.id)&&request.touchedPaths.some(p=>entry.fact.sourceScope.some(s=>p===s||p.startsWith(`${s}/`))&&entry.chapter.sources[p]!==snapshots[entry.chapterId][p]);
+          return depReview?.invalidatedFactIds.includes(entry.fact.id)&&request.touchedPaths.some(p=>(entry.fact.sourceScope.some(s=>p===s||p.startsWith(`${s}/`))||entry.fact.evidence.some(e=>e.path===p))&&entry.chapter.sources[p]!==snapshots[entry.chapterId][p]);
         });
         if(!direct&&!upstreamChanged)throw new Error(`No directly touched, changed evidence or changed dependency for fact: ${id}`);
       }

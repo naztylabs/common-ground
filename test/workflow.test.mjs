@@ -147,7 +147,8 @@ test('default CLI stdio profile runs a quiet end-to-end task',async t=>{
   assert.equal((await call('task_context',{action:'finish',taskId})).notification,'approval-required');
 });
 test('assessment includes reverse dependents and patch omission still fails',async t=>{
-  const {store,flow,taskId}=await fixture(t);await addDependent(store);
+  const {root,store,flow,taskId}=await fixture(t);await addDependent(store);
+  await fs.appendFile(path.join(root,'app/contract.txt'),'\nchanged source');
   const assessment=await flow.assess(taskId,['app/contract.txt']);
   assert.deepEqual(assessment.items.filter(i=>i.kind==='chapter').map(i=>i.chapterId),['app/overview','ci/overview']);
   const input=await patch(store,taskId,[{...fact(),statement:'Application records follow the verified v1 format.'}]);

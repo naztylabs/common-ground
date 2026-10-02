@@ -1,3 +1,5 @@
+import { Lookup, Assess, lookup, assessChanges } from './access.js';
+import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
 import { reviewKnowledge } from './review.js';
 import { ReadKnowledge, readKnowledge, listPillars, listChapters, readChapter, readFact, search, reviewChecklist } from './retrieval.js';
 import { z } from 'zod';
@@ -15,25 +17,52 @@ const paging={cursor:z.string().optional(),limit:z.number().int().min(1).max(20)
 const target={target:z.string().min(1)};
 const task={taskId:z.string().uuid()};
 const approval={approved:z.literal(true).describe('Declaration of explicit developer approval of this exact operation and content; never infer approval from this flag.')};
+const batch={batches:z.array(z.object({chapterId:chapterKey,facts:z.array(Fact).min(1)}).strict()).min(1),dryRun:z.boolean().default(false),approved:z.literal(true).optional(),preflight:z.string().optional()};
 const routing={path:relativePath.optional(),signal:z.string().optional(),...paging};
 type Operation={description:string;schema:z.AnyZodObject;run:(args:any)=>Promise<unknown>};
 export function operations(store:Store):Record<string,Operation> {
   const flow=new Workflow(store);
   const op=(description:string,shape:z.ZodRawShape,run:Operation['run']):Operation=>({description,schema:z.object(shape).strict(),run});
-  const check=op('Check all or selected knowledge for structure, exact evidence and freshness. Stale results list affected IDs and offer cleanup. cleanup:true requires developer-requested cleanup; it creates a scoped tidyId for the calling agent to verify and submit corrections.',{target:z.string().default('all'),cleanup:z.boolean().default(false),...paging},a=>checkKnowledge(store,a.target,a.cleanup,a.cursor,a.limit));
+  const mutation=async(operation:string,args:any,write:()=>Promise<unknown>)=>{
+    const result=await write();if(args.verbose)return result;
+    const chapterIds=operation==='approve'?args.pillars.flatMap((p:any)=>p.chapters.map((c:any)=>`${p.id}/${c.id}`)):operation==='approve-chapters'?args.chapters.map((c:any)=>`${args.pillarId}/${c.id}`):[args.chapterId];
+    const factIds=(args.facts??[]).map((f:any)=>`${args.chapterId}/${f.id}`);
+    return {operation,approved:true,chapterCount:chapterIds.length,chapterIds,factCount:factIds.length,factIds,validation:'structure and exact evidence; not semantic verification',outputPath:'.common-ground/knowledge.json',next:operation.startsWith('approve')?'Boundaries approved; facts still require developer review and approval.':'Run validate, then start or continue the task workflow.'};
+  };
+  const verbose={verbose:z.boolean().default(false)};
+  const check=op('Check all or selected knowledge for structure, exact evidence and freshness. Stale results list affected IDs and offer cleanup. cleanup:true requires developer-requested cleanup; it creates a scoped tidyId for the calling agent to verify and submit corrections.',{target:z.string().default('all'),cleanup:z.boolean().default(false),allResults:z.boolean().default(false),...paging},a=>checkKnowledge(store,a.target,a.cleanup,a.cursor,a.limit,undefined,a.allResults));
   return {
+    lookup:op('Find up to five relevant facts and source paths without task state or source hashing. verify:true checks selected facts and dependencies; default freshness is not-checked.',Lookup.shape,a=>lookup(store,a)),
+    assess:op('Read-only assessment of actual task-touched paths. No task needed. Compare candidate source changes; review:true supplies complete chapters and verification paths before corrections.',Assess.shape,a=>assessChanges(store,a)),
+    schema:op('Inspect an operation input schema and CLI payload guidance.',{operation:z.string()},async a=>{
+      const entry=operations(store)[a.operation];if(!entry)throw new Error('Unknown operation.');
+      const payload=['seed','admit','propose-facts'].includes(a.operation)?entry.schema.shape.facts
+        :a.operation==='approve'?entry.schema.pick({pillars:true})
+        :a.operation==='approve-chapters'?entry.schema.pick({chapters:true})
+        :a.operation==='accept-facts'?entry.schema.shape.review
+        :['bootstrap','seed-batch'].includes(a.operation)?entry.schema.omit({dryRun:true,approved:true,preflight:true}):entry.schema;
+      return {operation:a.operation,description:entry.description,inputSchema:toJsonSchemaCompat(entry.schema),cliPayloadSchema:toJsonSchemaCompat(payload)};
+    }),
+    bootstrap:op('Preflight an initial map and facts together; publication requires developer approval and the matching preflight token.',{pillars:z.array(PillarDefinition).min(1),...batch},a=>{
+      if(!a.dryRun && a.approved!==true)throw new Error('Developer approval required for boundaries and facts.');
+      return store.bootstrap(a.pillars,a.batches,a.dryRun,a.preflight);
+    }),
+    'seed-batch':op('Preflight and populate multiple approved empty chapters atomically.',batch,a=>{
+      if(!a.dryRun && a.approved!==true)throw new Error('Developer approval required for facts.');
+      return store.bootstrap(undefined,a.batches,a.dryRun,a.preflight);
+    }),
     init:op('Initialize or refresh repository guidance, MCP configuration, advisory hook and local Markdown.',{},()=>initialize(store)),
     scan:op('Discover a proposed responsibility map; no approval or shared knowledge write.',{},()=>discover(store)),
-    approve:op('Approve the developer-reviewed responsibility map.',{pillars:z.array(PillarDefinition),standaloneReason:z.string().optional(),...approval},a=>store.approveDefinitions(a.pillars,a.standaloneReason)),
+    approve:op('Approve the developer-reviewed responsibility map.',{pillars:z.array(PillarDefinition),standaloneReason:z.string().optional(),...approval,...verbose},a=>mutation('approve',a,()=>store.approveDefinitions(a.pillars,a.standaloneReason))),
     migrate:op('Migrate a legacy registry after developer approval.',approval,()=>store.migrate()),
-    'approve-chapters':op('Add developer-approved chapters.',{pillarId:z.string(),chapters:z.array(ChapterDefinition),...approval},a=>store.addChapters(a.pillarId,a.chapters)),
-    seed:op('Populate an approved empty chapter with developer-approved source-verified facts.',{chapterId:chapterKey,facts:z.array(Fact),...approval},a=>store.seed(a.chapterId,a.facts)),
-    admit:op('Admit developer-approved facts after reviewing the whole chapter and source.',{chapterId:chapterKey,facts:z.array(Fact),...approval},a=>store.admit(a.chapterId,a.facts)),
-    'task-start':op('Start once per developer task; continue setup guidance if no taskId.',{paths:z.array(relativePath).optional(),signal:z.string().optional()},a=>flow.start(a.paths,a.signal)),
+    'approve-chapters':op('Add developer-approved chapters.',{pillarId:z.string(),chapters:z.array(ChapterDefinition),...approval,...verbose},a=>mutation('approve-chapters',a,()=>store.addChapters(a.pillarId,a.chapters))),
+    seed:op('Populate an approved empty chapter with developer-approved source-verified facts.',{chapterId:chapterKey,facts:z.array(Fact),...approval,...verbose},a=>mutation('seed',a,()=>store.seed(a.chapterId,a.facts))),
+    admit:op('Admit developer-approved facts after reviewing the whole chapter and source.',{chapterId:chapterKey,facts:z.array(Fact),...approval,...verbose},a=>mutation('admit',a,()=>store.admit(a.chapterId,a.facts))),
+    'task-start':op('Optional task context for deferred additions or aggregated correction reports; lookup and assess need no task.',{paths:z.array(relativePath).optional(),signal:z.string().optional()},a=>flow.start(a.paths,a.signal)),
     'task-assess':op('Assess actual task-touched paths.',{...task,paths:z.array(relativePath),refresh:z.boolean().optional(),...paging},a=>flow.assess(a.taskId,a.paths,a.cursor,a.limit,a.refresh)),
     'task-finish':op('Finish task; present compact before/after corrections with reasons, sources and recommendations. Only pending additions need approval; never ask the developer to review JSON.',{...task,...paging},a=>flow.finish(a.taskId,a.cursor,a.limit)),
     'read-knowledge':op('Read bounded knowledge; discover read kinds in the read_knowledge tool or help.',ReadKnowledge.shape,a=>readKnowledge(store,a)),
-    'prepare-patch':op('Prepare verified existing-fact maintenance after whole chapter and source review.',Patch.shape,a=>flow.prepare(a)),
+    'prepare-patch':op('Prepare verified existing-fact maintenance after whole chapter and source review. taskId is optional; omitted means no start/finish lifecycle.',Patch.shape,a=>flow.prepare(a)),
     'propose-facts':op('Queue source-verified facts locally for later approval.',{...task,chapterId:chapterKey,facts:z.array(Fact).min(1)},a=>flow.propose(a.taskId,a.chapterId,a.facts)),
     'drop-facts':op('Discard selected local proposal keys.',{...task,factKeys:z.array(z.string()).min(1)},a=>flow.drop(a.taskId,a.factKeys)),
     'accept-facts':op('Admit the explicitly approved finished-task batch after complete linked-chapter and source review.',{...task,review:Admission,...approval},a=>flow.accept(a.taskId,a.review)),

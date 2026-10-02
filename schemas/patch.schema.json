@@ -23,8 +23,17 @@
         "touchedPaths": {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "allOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ],
+            "description": "Repository-relative path without traversal or symlinks; trailing directory slashes normalize away."
           }
         },
         "tidyId": {
@@ -190,7 +199,6 @@
         }
       },
       "required": [
-        "taskId",
         "chapterId",
         "touchedPaths",
         "verification",

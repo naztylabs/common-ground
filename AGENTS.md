@@ -13,13 +13,13 @@ Use synthetic fixtures only. Do not copy employer code, internal documentation, 
 
 Code is the source of truth; these notes only help navigation.
 
-For repository questions, consult Common Ground and verify source. If knowledge is missing or stale, answer from source and prompt to update it. Derive temporary state live; read directory READMEs.
+For repository questions, use cground lookup with a path or short query for facts and source locations. Lookup is stateless; default freshness is not checked. Open source and directory READMEs before relying on claims. Use --verify when live freshness matters. Derive temporary state live.
 
-If the developer disputes the code, clarify current versus intended behavior together. Record only verified, durable knowledge under the note-taking rules.
+Keep the developer task primary. After edits, cground assess --touched checks only this task's actual paths, including additions/deletions. No matching source change means no fact review or task bookkeeping; still review relevant local documentation. Source drift means check the affected claims, not automatic revision. Follow additional semantic connections found in source.
 
-Keep the developer task primary. Use task_context start once. Without a taskId, follow its setup guidance and START_HERE.md; continue from source. Otherwise read_knowledge for relevant chapters (evidence:true), then assess touched paths. Reuse responses only within this task; refresh:true after context loss.
+If corrections are needed, request assess --review. Before editing, read [.common-ground/POLICY.md](.common-ground/POLICY.md), every required chapter page and the listed sources/docs. prepare-patch works without taskId; complete review and conflict checks remain mandatory. Summarize actual corrections as before → after, why, source links and recommendation.
 
-Quietly correct verified existing facts in affected scope. Before editing, read [.common-ground/POLICY.md](.common-ground/POLICY.md), the whole required chapters, source and related documentation. Default to no write. Queue new facts with propose_facts; finish the task before presenting the approval batch. New facts, chapters, pillars and ownership expansion need developer direction. Library-local detail belongs in its README; record durable patterns, not inventories or debugging history. Facts allow 2,000 characters for one coherent, source-backed claim.
+Task contexts are optional for aggregated reporting and deferred additions. Start one when needed; propose_facts queues drafts, finish after the main task, then ask "Ready to make the following facts available to the team?" New facts, chapters, pillars and ownership expansion need developer direction. If started, finish the task once; reuse cached responses only within it and refresh:true after context loss.
 
-Call task_context finish at completion only with a taskId. Summarize corrections as before → after, why, source links and recommendation; never require JSON review. Present pending facts with evidence and ask "Ready to make the following facts available to the team?" before admission; no change means no Common Ground report. Ask immediately only if uncertainty blocks the main task; never guess. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
+Default to no write. Keep durable patterns, not debugging history; library-local detail belongs in its README. Resolve disputed behavior with the developer. No change means no Common Ground report. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
 <!-- common-ground:end -->

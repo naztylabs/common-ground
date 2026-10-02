@@ -1,5 +1,5 @@
 import { z } from 'zod';
-export const relativePath = z.string().min(1).refine(p => !p.startsWith('/') && !p.includes('\\') && !p.split('/').some(s => s === '..' || s === '.' || s === '') && !/^[A-Za-z]:/.test(p), 'Use a repository-relative path without traversal');
+export const relativePath = z.string().min(1).transform(p => p.replace(/\/+$/, '')).pipe(z.string().min(1).refine(p => !p.startsWith('/') && !p.includes('\\') && !p.split('/').some(s => s === '..' || s === '.' || s === '') && !/^[A-Za-z]:/.test(p), 'Use a repository-relative path without traversal')).describe('Repository-relative path without traversal or symlinks; trailing directory slashes normalize away.');
 const id = z.string().regex(/^[a-z0-9][a-z0-9-]*$/);
 export const chapterKey = z.string().regex(/^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/);
 export const factKey = z.string().regex(/^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/);

@@ -6,7 +6,8 @@ const document = (name: string) => /\.(md|mdx|rst|adoc)$/i.test(name) || /^readm
 const excluded = (file: string) => file.split('/').some(p => ['.git','node_modules','.common-ground','dist','build','target','.nx','.next','coverage'].includes(p) || p.startsWith('.env'));
 
 /** Bounded discovery of local documentation; never follows symlinks or remote links. */
-export async function reviewDocuments(store: Store, paths: string[]) {
+export async function reviewDocuments(store: Store, paths: string[], mode:'full'|'focused'='full') {
+  if(!paths.length)return [];
   const directories = new Set<string>();
   const files = new Set<string>();
   for (const file of paths) {
@@ -31,18 +32,19 @@ export async function reviewDocuments(store: Store, paths: string[]) {
     for (const entry of entries) {
       const file = path.posix.join(directory, entry.name);
       if (excluded(file) || entry.isSymbolicLink()) continue;
-      if (entry.isFile() && document(entry.name)) files.add(file);
+      if (entry.isFile() && document(entry.name) && (mode==='full'||/^(readme(?:\.[^/]+)?|AGENTS\.md)$/i.test(entry.name))) files.add(file);
       // Include sibling directory READMEs without crawling every sibling subsystem.
-      if (entry.isDirectory()) for (const child of await fs.readdir(path.join(store.root, file), {withFileTypes:true})) {
+      if (mode==='full' && entry.isDirectory()) for (const child of await fs.readdir(path.join(store.root, file), {withFileTypes:true})) {
         if (child.isFile() && /^readme(?:\.[^/]+)?$/i.test(child.name)) files.add(`${file}/${child.name}`);
       }
     }
   }
-  if (directories.size) {
+  if (mode==='full' && directories.size) {
     const scan = await store.walk([...directories], 10000);
     if (scan.truncated) throw new Error('Documentation discovery exceeds the beta scan limit; narrow chapter evidence scopes before review.');
     for (const file of scan.files) if (document(file)) files.add(file);
   }
+  if(mode==='focused')return [...files].sort();
   // Follow relative documentation references transitively, with cycles deduplicated.
   for (const file of files) {
     if (files.size > 1000) throw new Error('Documentation review exceeds the beta limit of 1,000 files.');

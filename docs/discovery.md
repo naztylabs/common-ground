@@ -40,9 +40,9 @@ Nested manifests and Angular declarations establish project roots. Explicit Nx e
 
 ## Limits and output
 
-- Scan at most **1,500 directory entries**, breadth-first. Root manifests and shallow sibling projects are examined before deep trees. Very wide directories can still exhaust the budget.
+- Scan at most **1,500 directory entries**, breadth-first. Root manifests and shallow sibling projects are examined before deep trees; conventional first-party directories (src, include, apps, packages, libs, services) are queued ahead of other siblings. Very wide directories can still exhaust the budget.
 - Read at most **256 KiB per manifest** and accept at most **2 MiB of manifest content**. Oversized, malformed and budget-skipped manifests generate warnings. Source files are identified by path; their contents are left for agent verification.
-- Skip symlinks, `.env*`, dependencies, common generated output (including `.vite` dependency caches), virtual environments and native build/dependency directories such as `Pods`, `Carthage`, `DerivedData`, `.build`, `.gradle` and `.dart_tool`. This uses a built-in exclusion list, not a complete `.gitignore` implementation.
+- Skip symlinks, `.env*`, dependencies, common generated output (including `.vite` dependency caches), virtual environments and native build/dependency directories such as `third_party`, `third-party`, `thirdparty`, `external`, `extern`, `deps`, `dependencies`, `Pods`, `Carthage`, `DerivedData`, `.build`, `.gradle` and `.dart_tool`. This uses a built-in exclusion list, not a complete `.gitignore` implementation.
 - Return at most **50 project candidates**, **30 exact-file ownership hints per chapter**, **6 evidence paths per detection**, **10 warning details**, and **30 unclassified/sample-omitted paths**. Total counts and truncation flags accompany capped sections. A file has at most one proposed owner; sampled exact files must be expanded or reassigned during review.
 
 `scan.truncated` reports filesystem scan truncation. `scan.inspectedEntries`, `scan.inspectedFiles` and `scan.manifestBytesRead` describe the work performed. `projectsTruncated`, `detectedProjectCount`, each detection's `pathsTruncated`/`evidenceCount`, and `warningCount` describe output limits. Inspect these fields before claiming the repository has been covered. A successful scan never proves exhaustive coverage; these discovery limits do not cap stored facts or approved projects.
@@ -52,3 +52,5 @@ Invalid JSON is reported without aborting the entire bootstrap. Filename/languag
 ## Extending safely
 
 Repository owners can define an approved pillar/chapter for an unsupported technology today. Automatic discovery is a convenience, not a prerequisite for using the framework. For new built-in discovery rules, preserve bounded reads, explicit uncertainty, approval requirements and non-overlapping ownership. Add positive examples alongside false-positive, mixed-monorepo and malformed-input cases. Never populate factual claims from detection labels alone.
+
+C/C++ source extensions and CMake/Meson manifests produce C/C++ responsibility candidates. Root C/C++ signals take precedence over incidental PHP utilities in the same project root; nested manifest roots remain separate candidates. These are heuristics and require boundary review.
