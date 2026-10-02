@@ -3,9 +3,9 @@ export const relativePath = z.string().min(1).transform(p => p.replace(/\/+$/, '
 const id = z.string().regex(/^[a-z0-9][a-z0-9-]*$/);
 export const chapterKey = z.string().regex(/^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/);
 export const factKey = z.string().regex(/^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/);
-export const Evidence = z.object({ path: relativePath, quote: z.string().trim().min(1).max(1200) }).strict();
+export const Evidence = z.object({ path: relativePath.describe('Supporting source path; may be outside the owning chapter. Evidence paths are automatically tracked for freshness without adding them to sourceScope.'), quote: z.string().trim().min(1).max(1200) }).strict();
 const LegacyFact = z.object({ id, statement: z.string().trim().min(8).max(2000), evidence: z.array(Evidence).min(1).max(8) }).strict();
-export const Fact = LegacyFact.extend({sourceScope:z.array(relativePath).min(1),dependsOn:z.array(factKey).default([])}).strict();
+export const Fact = LegacyFact.extend({sourceScope:z.array(relativePath).min(1).describe('Owned source coverage, restricted to this chapter paths. For a chapter owning src: sourceScope [src], evidence [{path: shared/config.ts, quote: mode = 1}]. Cross-chapter citations belong in evidence, not sourceScope.'),dependsOn:z.array(factKey).default([])}).strict();
 const Boundary = z.object({ id, title: z.string().trim().min(3).max(100), scope: z.string().trim().min(12).max(800), excludes: z.string().trim().min(3).max(800) }).strict();
 export const ChapterDefinition = Boundary.extend({ paths: z.array(relativePath).min(1).max(30) }).strict();
 export const Chapter = ChapterDefinition.extend({ revision: z.number().int().positive(), facts: z.array(Fact), sources: z.record(z.string()), dependencyFingerprints: z.record(z.string()).default({}) }).strict();

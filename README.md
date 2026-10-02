@@ -11,7 +11,7 @@ No model API key, telemetry, cloud service, or vector database is required. Code
 Requires Node.js 22+ and npm. Download the `.tgz` package from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install it:
 
 ```sh
-npm install -g ./common-ground-knowledge-0.5.0-beta.0.tgz
+npm install -g ./common-ground-knowledge-0.5.0-beta-1.tgz
 cd your-project
 cground init
 ```
@@ -74,6 +74,8 @@ cground --version
 Every command supports `--help` and `-h`, with its arguments, options, and an example. Help never executes the command or requires an initialized repository. Options accept both `--root PATH` and `--root=PATH`. Unknown flags, unsupported options, and missing or extra arguments fail with a usage hint.
 
 Use `--root PATH` to select another repository. In terminals, checks return a concise summary. Validation returns failing rows by default; `--all-results` includes passing rows, with a global summary in either mode. `approve`, `approve-chapters`, `seed` and `admit` return compact receipts; `--verbose` returns full objects. Pipes preserve structured JSON; `--json` requests it explicitly and disables interactive prompts. `init` keeps its short agent handoff and Markdown link; `review` prints readable text by default. Use `--json` for structured output from either command. Diagnostics go to stderr, and MCP stdout stays reserved for the protocol.
+
+`cground schema OPERATION` returns the CLI payload schema by default; `--both` also includes MCP arguments. With `--json`, failures return one JSON error object on stderr with `code`, `message`, `fields` and `recovery`, and exit nonzero. Successful results remain on stdout.
 
 Exit codes are `0` for success and `1` for a failed command or knowledge needing attention. Pre-commit hook checks remain advisory and never block a commit.
 
@@ -168,10 +170,10 @@ npm ci
 npm test
 npm run demo                # Synthetic repository only
 npm run release:pack        # Tested archive + checksum in release/
-npm install -g ./release/common-ground-knowledge-0.5.0-beta.0.tgz
+npm install -g ./release/common-ground-knowledge-0.5.0-beta-1.tgz
 ```
 
-After upgrading, run `cground init` to refresh guidance, then restart the MCP server. Existing schema-v2 records are preserved. For a schema-v1 pillar-only registry, first review and run `cground migrate --approve`. Read the [release guide](docs/releases.md) for publishing and migration details.
+After upgrading, run `cground doctor` and `cground refresh-guidance` for stale instructions, then restart the MCP server. Use `cground init` when full setup needs repair. Existing schema-v2 records are preserved. For a schema-v1 pillar-only registry, first review and run `cground migrate --approve`. Read the [release guide](docs/releases.md) for publishing and migration details.
 
 More: [architecture and limits](docs/architecture.md), [complete knowledge policy](docs/knowledge-policy.md), [synthetic demo](docs/demo.md), [discovery](docs/discovery.md), [0.4.0 audit](docs/audit-0.4.0.md). Run `npm run measure:context` for reproducible context-size comparisons; these are byte measurements, not billing guarantees.
 

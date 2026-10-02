@@ -1,3 +1,4 @@
+import { GroundError } from './errors.js';
 import { createReadStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -115,7 +116,7 @@ export class Store {
   async validateFacts(pillar: Pick<ChapterRecord,'paths'|'facts'>) {
     unique(pillar.facts.map(f => f.id), 'fact IDs');
     for (const fact of pillar.facts) {
-      for (const scope of fact.sourceScope) if (!pillar.paths.some(p=>scope===p||scope.startsWith(`${p}/`))) throw new Error(`Fact source scope outside chapter: ${scope}`);
+      for (const scope of fact.sourceScope) if (!pillar.paths.some(p=>scope===p||scope.startsWith(`${p}/`))) throw new GroundError('SOURCE_SCOPE_OUTSIDE_CHAPTER',`Fact source scope outside chapter: ${scope}. Keep sourceScope within chapter paths; put cross-chapter supporting paths in evidence instead.`,['sourceScope'],'Use evidence for external citations; evidence is tracked automatically without expanding ownership.');
       for (const evidence of fact.evidence) {
       const file = await this.safe(evidence.path);
       if ((await fs.stat(file)).size > 2_000_000) throw new Error('Evidence file too large');
@@ -251,7 +252,7 @@ export class Store {
       for(const key of keys)if(!same(this.chapter(registry,key).sources,(context[key] as {snapshot:unknown}).snapshot))throw new Error('Source changed during bootstrap.');
       const token=hash(stable({original:original??null,registry,context}));
       if(!dryRun){
-        if(!expected || expected!==token)throw new Error('Preflight conflict: rerun --dry-run and review the current payload and sources.');
+        if(!expected || expected!==token)throw new GroundError('PREFLIGHT_CONFLICT','Preflight conflict: rerun --dry-run and review the current payload and sources.',['preflight'],'Rerun --dry-run and review the new payload and sources before publishing with the new token.');
         // Repeat source checks immediately before publication, under the writer lock.
         if(!same(context,await this.context(registry,required)))throw new Error('Source changed during bootstrap.');
         let current:RegistryRecord|undefined;
@@ -356,7 +357,9 @@ export class Store {
     this.validateRegistry(candidate);
     const tidyScope=request.tidyId?await this.tidyScope(request.tidyId,registry):[];
     if(request.tidyId&&!tidyScope.includes(request.chapterId))throw new Error('Initiating chapter is outside the tidy scope');
-    if(!request.tidyId&&!request.touchedPaths.length)throw new Error('Routine updates need touched paths; developer-requested cleanup needs a tidyId.');
+    const citationOnly=(before:ChapterRecord['facts'][number],after:ChapterRecord['facts'][number]|undefined)=>!!after && !same(before.evidence,after.evidence) && same({...before,evidence:[]},{...after,evidence:[]});
+    const citationReview=request.reviews.some(r=>r.facts.some(f=>{const old=this.chapter(registry,r.chapterId).facts.find(o=>o.id===f.id);return old&&citationOnly(old,f);}));
+    if(!request.tidyId&&!request.touchedPaths.length&&!citationReview)throw new Error('Routine updates need touched paths; developer-requested cleanup needs a tidyId.');
     const maintenanceReviews=request.reviews.filter(r=>r.maintenance?.length);
     const initialScope=new Set([...tidyScope,...this.related(registry,request.chapterId,request.factIds),...this.related(candidate,request.chapterId,request.factIds)]);
     if(maintenanceReviews.some(r=>!initialScope.has(r.chapterId)))throw new Error('Maintenance is outside the affected review scope; request a separate developer-directed tidy.');
@@ -396,6 +399,7 @@ export class Store {
       for(const id of review.invalidatedFactIds){
         const fact=old.facts.find(f=>f.id===id);
         if(!fact||same(fact,review.facts.find(f=>f.id===id)))throw new Error(`Invalid invalidated fact: ${id}`);
+        if(!request.tidyId && citationOnly(fact,review.facts.find(f=>f.id===id)) && affected.has(`${review.chapterId}/${id}`))continue;
         const maintenance=review.maintenance?.find(m=>m.factId===id);
         if(maintenance) {
           const anchored=request.touchedPaths.some(p=>required.some(key=>[...this.chapter(registry,key).paths,...this.chapter(registry,key).facts.flatMap(f=>f.evidence.map(e=>e.path))].some(s=>p===s||p.startsWith(`${s}/`))));

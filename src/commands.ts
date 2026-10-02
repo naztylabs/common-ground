@@ -2,6 +2,8 @@ import { parseArgs } from 'node:util';
 
 // CLI syntax only. Domain validation and execution live in operations.ts for both interfaces.
 export const options = {
+  both: { type: 'boolean', label: '--both', description: 'Include both CLI payload and MCP operation schemas' },
+  exclude: { type: 'string', label: '--exclude <paths>', description: 'Comma-separated repository-relative paths to exclude from discovery' },
   verify: { type: 'boolean', label: '--verify', description: 'Check selected facts and upstream source freshness' },
   review: { type: 'boolean', label: '--review', description: 'Include complete chapters and source/documentation paths before knowledge correction' },
   stdin: { type: 'boolean', label: '--stdin', description: 'Read the JSON payload from stdin instead of a file' },
@@ -43,6 +45,7 @@ export const commands:CommandSpec[] = [
   define('tidy','<target>','Plan developer-requested cleanup; agent verifies and applies it',paging,'cground tidy all','Everyday'),
   define('review','[target]','Summarize knowledge changes for agent-led human review',['staged','evidence',...paging],'cground review --staged','Everyday'),
   define('export','','Refresh .common-ground/local/knowledge.md',[],'cground export','Everyday'),
+  define('refresh-guidance','','Refresh managed instructions without changing knowledge, MCP configuration or hooks',[],'cground refresh-guidance','Everyday'),
   define('doctor','','Check repository setup and registry health',[],'cground doctor','Everyday'),
   define('hook check','','Run the advisory staged-index check; never block commits',[],'cground hook check','Everyday'),
   define('hook install','','Install the advisory hook or explain existing hook integration',[],'cground hook install','Everyday'),
@@ -57,10 +60,10 @@ export const commands:CommandSpec[] = [
   define('start','[signal...]','Route from a symptom or source path',['path','signal',...paging],'cground start "build failed"','Navigation'),
   define('owners','[signal...]','Find candidate owners for a source path or symptom',['path','signal',...paging],'cground owners --path src/build.ts','Navigation'),
   define('graph','[pillar]','Read recorded pillar dependencies',paging,'cground graph cicd','Navigation'),
-  define('schema','<operation>','Show the exact operation schema and CLI payload shape',[],'cground schema seed'),
+  define('schema','<operation>','Show the CLI payload schema; --both also includes MCP arguments',['both'],'cground schema seed'),
   define('bootstrap','<plan.json>','Preflight and publish an initial map and fact batches together',['stdin','dry-run','preflight'],'cground bootstrap bootstrap.json --dry-run'),
   define('seed-batch','<batch.json>','Preflight and populate several approved empty chapters atomically',['stdin','dry-run','preflight'],'cground seed-batch batch.json --dry-run'),
-  define('scan','','Discover a proposed responsibility map; does not approve it',[],'cground scan'),
+  define('scan','','Discover a proposed responsibility map; does not approve it',['exclude'],'cground scan'),
   define('approve','<plan.json>','Create developer-approved pillar definitions',['approve','standalone-reason'],'cground approve .common-ground/local/bootstrap.json --approve'),
   define('approve-chapters','<pillar> <plan.json>','Add developer-approved chapters',['approve'],'cground approve-chapters cicd chapters.json --approve'),
   define('seed','<chapter> <facts.json>','Populate an approved empty chapter',['approve'],'cground seed cicd/pipelines facts.json --approve'),
@@ -143,6 +146,7 @@ export function helpText(command?:CommandSpec,group?:string) {
     if(command.flags.includes('stdin'))lines.push('Use --stdin instead of the JSON filename, or use - as the filename.','');
   }
   else lines.push('Get started: cground init → review the proposed knowledge with your agent → cground check', 'Help: cground <command> --help, cground help <command>, cground hook --help','');
+  if(command && ['seed','admit','bootstrap','prepare-patch'].includes(command.name))lines.push('sourceScope stays within the owning chapter paths. Supporting evidence may cross ownership boundaries: for a chapter owning src, use sourceScope:["src"] with evidence:[{path:"shared/config.ts",quote:"mode = 1"}]. External evidence is tracked automatically; do not add shared/config.ts to sourceScope.','');
   if(command?.name==='lookup')lines.push('Default: up to five stored facts with source paths; freshness is not checked. Use --verify for live checks.','');
   if(command?.name==='assess')lines.push('No task start or finish required. No local/shared writes. Use --review only when a correction needs whole-chapter review.','');
   if(command && ['check','validate','tidy'].includes(command.name))lines.push('Targets: all, pillar, pillar/chapter, pillar/chapter/fact, or a unique fact ID.', 'Cleanup returns a plan and tidyId. Your agent must read source and submit verified corrections.', 'Check/validate exit 1 while stale or unpopulated, even after cleanup is accepted.','');
