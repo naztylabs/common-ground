@@ -18,6 +18,7 @@ async function managed(store: Store, relative: string, body: string) {
   const block = `${start}\n${body.trim()}\n${end}`;
   const next = old.includes(start) ? old.slice(0,old.indexOf(start)) + block + old.slice(old.indexOf(end)+end.length) : old + (old && !old.endsWith('\n') ? '\n' : '') + (old ? '\n' : '') + block + '\n';
   if (next !== old) { await fs.mkdir(path.dirname(file),{recursive:true}); await fs.writeFile(file,next); }
+  return next !== old;
 }
 export async function initialize(store: Store) {
   await store.safe('.common-ground',true);
@@ -58,9 +59,10 @@ export async function guidanceStatus(store:Store) {
     } catch(error:any) { if(error.code!=='ENOENT')throw error;files[file]='missing'; }
   }
   return {installedVersion:version,basis:'Managed content compared with installed guidance templates',status:Object.values(files).every(value=>value==='current')?'current':'outdated',files,
-    next:'Run cground refresh-guidance to update managed instructions while preserving surrounding text.'};
+    next:Object.values(files).every(value=>value==='current')?null:'Run cground refresh-guidance to update managed instructions while preserving surrounding text.'};
 }
 export async function refreshGuidance(store:Store) {
-  for(const [file,body] of Object.entries(guidanceFiles))await managed(store,file,body);
-  return {writesKnowledge:false,...await guidanceStatus(store)};
+  const changedFiles:string[]=[],unchangedFiles:string[]=[];
+  for(const [file,body] of Object.entries(guidanceFiles))(await managed(store,file,body)?changedFiles:unchangedFiles).push(file);
+  return {writesKnowledge:false,changedFiles,unchangedFiles,...await guidanceStatus(store)};
 }

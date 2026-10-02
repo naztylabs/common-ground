@@ -1,3 +1,4 @@
+import {GroundError} from './errors.js';
 import { changedFacts } from './access.js';
 import { reviewDocuments } from './review-files.js';
 import { factReview, type FactChange } from './review.js';
@@ -92,7 +93,7 @@ export class Workflow {
     const registry=await this.store.read();
     const reviews=patch.reviews.map(({reviewedAllFacts,replacements,removeFactIds,...review})=>{
       const old=this.store.chapter(registry,review.chapterId);
-      if(old.revision!==review.expectedRevision)throw new Error('Chapter revision conflict; reload.');
+      if(old.revision!==review.expectedRevision)throw new GroundError('REGISTRY_CONFLICT','Chapter revision conflict; reload.',['expectedRevision'],'Reload and review the chapter before preparing again.');
       unique([...replacements.map(f=>f.id),...removeFactIds],'patch fact IDs');
       if([...replacements.map(f=>f.id),...removeFactIds].some(id=>!old.facts.some(f=>f.id===id)))throw new Error('Patches only edit existing facts; queue additions with propose_facts.');
       const facts=old.facts.filter(f=>!removeFactIds.includes(f.id)).map(f=>replacements.find(r=>r.id===f.id)??f);
@@ -217,7 +218,7 @@ export class Workflow {
       if(task.pending.length)throw new Error('Resolve uncommitted maintenance before admitting new facts.');
       unique(review.reviews.map(r=>r.chapterId),'chapter reviews');
       if(!same(keys,review.reviews.map(r=>r.chapterId).sort()))throw new Error(`Review every linked chapter: ${keys.join(', ')}`);
-      for(const item of review.reviews)if(this.store.chapter(registry,item.chapterId).revision!==item.expectedRevision)throw new Error('Chapter revision conflict; reload.');
+      for(const item of review.reviews)if(this.store.chapter(registry,item.chapterId).revision!==item.expectedRevision)throw new GroundError('REGISTRY_CONFLICT','Chapter revision conflict; reload.',['expectedRevision'],'Reload and review the chapter before preparing again.');
       const files=await this.store.reviewFiles(registry,keys,task.paths,candidate);
       for(const kind of ['sourceFiles','documentFiles'] as const){unique(review.verification[kind],'verified files');for(const file of files[kind])if(!review.verification[kind].includes(file))throw new Error(`Session verification required for ${kind}: ${file}`);}
       const snapshots:Record<string,Record<string,string>>={};

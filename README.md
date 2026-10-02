@@ -11,7 +11,7 @@ No model API key, telemetry, cloud service, or vector database is required. Code
 Requires Node.js 22+ and npm. Download the `.tgz` package from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install it:
 
 ```sh
-npm install -g ./common-ground-knowledge-0.5.0-beta-1.tgz
+npm install -g ./common-ground-knowledge-0.5.0-beta-2.tgz
 cd your-project
 cground init
 ```
@@ -51,6 +51,8 @@ cground lookup "runtime mode" --verify     # Also check selected facts and depen
 cground assess --touched src/runtime.ts    # Assess only this task's changed paths
 cground assess --touched src/runtime.ts --review  # Complete package if a correction is needed
 ```
+
+Lookup results explain `matchReason` (direct evidence, source scope, ownership suggestion, or query terms), matched/unmatched terms and lexical query coverage. Ownership-only and partial-query results are navigation hints; if they do not answer the question, read source. A match does not prove topic coverage.
 
 Lookup and assessment create no task state and require no start/finish sequence. Lookup defaults to at most five facts and explicitly reports freshness as `not-checked`; open source before relying on a claim. `--verify` checks selected facts and upstream sources, not entire unrelated chapters or semantic truth.
 
@@ -170,10 +172,10 @@ npm ci
 npm test
 npm run demo                # Synthetic repository only
 npm run release:pack        # Tested archive + checksum in release/
-npm install -g ./release/common-ground-knowledge-0.5.0-beta-1.tgz
+npm install -g ./release/common-ground-knowledge-0.5.0-beta-2.tgz
 ```
 
-After upgrading, run `cground doctor` and `cground refresh-guidance` for stale instructions, then restart the MCP server. Use `cground init` when full setup needs repair. Existing schema-v2 records are preserved. For a schema-v1 pillar-only registry, first review and run `cground migrate --approve`. Read the [release guide](docs/releases.md) for publishing and migration details.
+After upgrading, run `cground doctor` and `cground refresh-guidance` for stale instructions, then restart the MCP server. Use `cground init` when full setup needs repair. `refresh-guidance` lists `changedFiles` and `unchangedFiles`; a healthy doctor or completed refresh returns `next: null`. Existing schema-v2 records are preserved. For a schema-v1 pillar-only registry, first review and run `cground migrate --approve`. Read the [release guide](docs/releases.md) for publishing and migration details.
 
 More: [architecture and limits](docs/architecture.md), [complete knowledge policy](docs/knowledge-policy.md), [synthetic demo](docs/demo.md), [discovery](docs/discovery.md), [0.4.0 audit](docs/audit-0.4.0.md). Run `npm run measure:context` for reproducible context-size comparisons; these are byte measurements, not billing guarantees.
 

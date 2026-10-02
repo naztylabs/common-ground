@@ -55,13 +55,21 @@ export async function lookup(store:Store,input:unknown){
     const pathScore=!args.path?0:fact.evidence.some(e=>overlaps(args.path!,e.path))?100:fact.sourceScope.some(s=>overlaps(args.path!,s))?50:chapter.paths.some(s=>overlaps(args.path!,s))?1:0;
     const text=`${fact.statement} ${fact.evidence.map(e=>e.path).join(' ')}`.toLocaleLowerCase();
     const score=pathScore+terms.reduce((n,t)=>n+Number(text.includes(t))*3,0);
-    return {entry,score,pathScore};
+    return {entry,score,pathScore,matchedTerms:terms.filter(t=>text.includes(t))};
   }).filter(m=>args.path?m.pathScore>0:m.score>0).sort((a,b)=>b.score-a.score||a.entry.key.localeCompare(b.entry.key));
-  const records=matches.map(({entry})=>({factId:entry.key,chapterId:entry.chapterId,statement:entry.fact.statement,sourcePaths:[...new Set(entry.fact.evidence.map(e=>e.path))]}));
+  const records=matches.map(({entry,pathScore,matchedTerms})=>({factId:entry.key,chapterId:entry.chapterId,statement:entry.fact.statement,sourcePaths:[...new Set(entry.fact.evidence.map(e=>e.path))],
+    matchReason:pathScore===100?'direct-evidence':pathScore===50?'source-scope':pathScore===1?'ownership-suggestion':'query-terms',
+    matchedTerms,unmatchedTerms:terms.filter(t=>!matchedTerms.includes(t)),
+    queryCoverage:terms.length?{matched:matchedTerms.length,total:terms.length}:null,
+    matchedPaths:args.path?(pathScore===100?entry.fact.evidence.map(e=>e.path):pathScore===50?entry.fact.sourceScope:entry.chapter.paths).filter(p=>overlaps(args.path!,p)):[],
+    relevance:pathScore===1?'ownership-only':terms.length&&matchedTerms.length<terms.length?'partial-query':'matched',
+  }));
   const selected=page(records,args.cursor,args.limit,digest({registry,path:args.path,query:args.query,verify:args.verify}),6000);
   const verified=args.verify?await verifySelected(store,registry,selected.items.map(item=>item.factId)):undefined;
   if(args.verify&&!same(registry,await store.read()))throw new Error('Knowledge changed during lookup; retry.');
   return {state:records.length?'matches':'no-matches',writesKnowledge:false,...selected,
+    coverage:'Lexical and path matches only; neither a match nor its absence establishes topic coverage. Ownership suggestions do not establish what the cited fact says about the requested path.',
+    next:records.length?'Use matchReason and matched terms to assess relevance. If these facts do not answer the question, read source rather than repeatedly broadening the query.':'No recorded match. Read source; missing knowledge does not imply missing behavior.',
     items:selected.items.map(item=>({...item,freshness:verified?.get(item.factId)??{status:'not-checked'}})),
     basis:args.verify?'Compares selected facts and upstream sources with stored baselines; ignores local review receipts. Not semantic verification.':'Stored navigation hints; freshness not checked. Open the source before relying on a claim.'};
 }
