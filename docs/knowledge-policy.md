@@ -1,6 +1,6 @@
 # Knowledge policy
 
-Start at [START_HERE.md](../.common-ground/START_HERE.md). Use the compact task workflow by default; the full MCP profile retains the original individual tools. Common Ground is a cache of the codebase, never authority over source or developer instructions.
+Start at [START_HERE.md](../.common-ground/START_HERE.md). Use stateless lookup and assessment by default; task contexts are optional; the full MCP profile retains the original individual tools. Common Ground is a cache of the codebase, never authority over source or developer instructions.
 
 ### Reading
 
@@ -26,6 +26,7 @@ Start at [START_HERE.md](../.common-ground/START_HERE.md). Use the compact task 
 - Corrections trigger the same full-file, sibling, child, and reference review as other touches. If the right version cannot be verified, say so explicitly and ask at the appropriate task boundary; do not publish a guessed resolution.
 - No note change does not end the check. Re-read the modified directory README and relevant documentation and ensure they remain valid, even when prepare_update returns noop.
 - Any developer may request cground tidy all, PILLAR, PILLAR/CHAPTER, or PILLAR/CHAPTER/FACT (a unique fact ID also works). This creates a scoped plan and local tidyId; the calling agent reads source and submits the verified cleanup. It neither invokes a model nor edits knowledge automatically. MCP tidy_plan only previews scope. The cground MCP tool exposes every CLI workflow: operation:help lists operations and help with args.operation returns its input schema. Use check or validate with a target; stale results list affected pillars, chapters and facts and ask "Start automatic cleanup?". With developer-requested cleanup, cleanup:true returns a scoped tidyId. The calling agent must verify source, submit reviewed corrections, then validate again. Use tidy for an explicitly requested broader cleanup.
+- Citation-only corrections can use empty touched paths without a tidy request when IDs, statements, ownership scopes and dependencies stay unchanged. A reason, full linked-chapter review, exact evidence and source/revision checks remain required.
 - For prepare_update, attest verification.sourceFiles and verification.documentFiles only after reading them this session (or verifying a deletion live). Use review_checklist for required paths and include newly cited evidence. Facts may contain up to 2,000 characters. Keep one coherent claim with enough context, conditions, and consequences to be useful; do not pad to the limit. Every assertion must be source-backed and free of temporary state.
 - Submit one complete transaction for affected chapters. Only changed chapters are rewritten; unchanged reviews use ignored local state. Existing correct facts stay unchanged unless explicit maintenance is justified. Never skip required tests based on stored notes.
 - Agents execute approved bootstrap/admission operations. Apply the same reading, verification, deduplication, and README checks before seed or admit. Commit durable knowledge and documentation with the code; keep .common-ground/local/ ignored.

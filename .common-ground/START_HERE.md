@@ -23,7 +23,9 @@ A bootstrap-required or not-initialized response has no taskId. Continue the mai
 
 ## Commands and review
 
-Every command supports --help without running it. cground schema OPERATION exposes its input shape; the MCP equivalent is cground operation:help with args.operation. Both MCP profiles expose all workflows through cground; the default profile also has five compact workflow tools, while --profile full retains the original detailed tools. Approval flags never override host approval settings.
+cground doctor detects stale managed instructions. Use cground refresh-guidance after upgrading to update only guidance, preserving surrounding developer text.
+
+Every command supports --help without running it. cground schema OPERATION exposes the CLI payload shape; --both also includes MCP arguments; the MCP equivalent is cground operation:help with args.operation. Both MCP profiles expose all workflows through cground; the default profile also has five compact workflow tools, while --profile full retains the original detailed tools. Approval flags never override host approval settings.
 
 cground validate [TARGET] checks all knowledge, a pillar, chapter or fact. It reports failures by default; --all-results includes passing rows. Follow nextCursor when present. Exit 1 means stale, invalid or unpopulated. Checks refresh the ignored Markdown reference without changing shared facts. --cleanup y requires developer-requested cleanup and returns a local tidyId for the calling agent to verify and submit corrections. Validation is not semantic verification.
 

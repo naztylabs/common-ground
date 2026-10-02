@@ -68,7 +68,9 @@ This example applies to the synthetic demo after changing `SEARCH_MIN_LENGTH` to
 }
 ```
 
-Unchanged records are reconstructed server-side. `reviewedAllFacts: true` attests the whole expected revision; it is neither proof of reading nor permission to skip reading. Use `removeFactIds` for deletions. Explicit maintenance without directly changed evidence needs a reasoned `maintenance` action (`correct`, `merge`, `remove`, or `tighten`) and relevant touched paths, or a developer-requested `tidyId`. See [the record contract](pillar-contract.md) and published `patch.schema.json`.
+Unchanged records are reconstructed server-side. `reviewedAllFacts: true` attests the whole expected revision; it is neither proof of reading nor permission to skip reading. Use `removeFactIds` for deletions. Citation-only repairs may use empty touchedPaths without a tidyId: only evidence may change; the fact ID, statement, sourceScope and dependsOn must remain unchanged. Supply a verified reason, read every required chapter, attest source/documentation verification and the expected revisions. Publication rechecks source and registry conflicts. Use review-plan and review-checklist for the selected chapter; do not invent touched paths.
+
+Other explicit maintenance without directly changed evidence needs a reasoned `maintenance` action (`correct`, `merge`, `remove`, or `tighten`) and relevant touched paths, or a developer-requested `tidyId`. See [the record contract](pillar-contract.md) and published `patch.schema.json`.
 
 ## Deferred additions
 

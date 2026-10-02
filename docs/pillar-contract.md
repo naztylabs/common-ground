@@ -33,7 +33,7 @@ Read every fact page for each required chapter. Submit one update request with:
 
 - `chapterId`: the chapter that initiated the review.
 - `factIds`: optional initiating fact IDs matching the review plan.
-- `touchedPaths`: repository paths touched by the authorized task. May be empty only with a developer-requested `tidyId`.
+- `touchedPaths`: repository paths touched by the authorized task. May be empty for fully reviewed citation-only repairs or with a developer-requested `tidyId`.
 - `reviews`: one entry for every required chapter, with `chapterId`, `expectedRevision`, `reviewedFactIds`, `invalidatedFactIds`, the complete replacement `facts`, and a `reason`.
 - `verification`: `sourceFiles` and `documentFiles` that the agent actually opened in this session (or verified as deleted). Get required paths from `review_checklist`, using the chapter IDs and touched paths, and include new evidence sources.
 - `tidyId`: optional local receipt from a developer-requested `cground tidy TARGET`.
@@ -85,8 +85,12 @@ For approved empty chapters, `seed-batch` accepts only `batches` and uses the sa
 
 Source scope expansion still rejects scans exceeding 10,000 entries. Source hashing streams regular files without the quotation size cap; evidence extraction retains its 2,000,000-byte limit. Supporting evidence outside ownership participates in validation, task assessment, dependency freshness and review checklists.
 
-CLI JSON payloads support `--stdin` or `-`. `cground schema OPERATION` returns the MCP argument schema and identifies the CLI payload shape (seed/admit/propose-facts take a facts array). Mutation operations approve/approve-chapters/seed/admit return counts, changed IDs, validation scope and output path; `--verbose` or MCP `verbose:true` returns the original full object.
+CLI JSON payloads support `--stdin` or `-`. `cground schema OPERATION` returns the CLI payload schema by default; `--both` also includes the MCP argument schema (seed/admit/propose-facts take a facts array). Mutation operations approve/approve-chapters/seed/admit return counts, changed IDs, validation scope and output path; `--verbose` or MCP `verbose:true` returns the original full object.
 
 ## Schema v1 migration
 
 Run `cground migrate --approve`, then `cground init` to update the managed instructions. Each old pillar becomes a pillar with one `overview` chapter. Facts, source hashes, scope, and revision are preserved; each fact derives its source scope from its evidence paths, and fact dependencies start empty. No dependency relationships are invented. A backup goes to `.common-ground/local/pre-v2-migration.json`. Migration is atomic and idempotent; it does not migrate pending local update proposals.
+
+Citation-only repairs may use empty touchedPaths without a tidyId: only evidence may change; the fact ID, statement, sourceScope and dependsOn must remain unchanged. Supply a verified reason, read every required chapter, attest source/documentation verification and the expected revisions. Publication rechecks source and registry conflicts. Use review-plan and review-checklist for the selected chapter; do not invent touched paths.
+
+For a chapter owning `src`, keep `sourceScope: ["src"]`. A supporting quote in `shared/config.ts` belongs in `evidence: [{"path":"shared/config.ts","quote":"mode = 1"}]`; external evidence is tracked automatically without expanding chapter ownership.

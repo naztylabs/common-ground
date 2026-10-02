@@ -7,7 +7,7 @@ import type { Store } from './store.js';
 
 const ENTRY_LIMIT=1500, FILE_BYTES=256*1024, TOTAL_BYTES=2*1024*1024, PROJECT_LIMIT=50;
 const excluded=new Set(['.git','node_modules','.common-ground','dist','build','target','.nx','.vite','.next','.nuxt','.svelte-kit','.angular','.turbo','.yarn','.pnpm-store','.output','coverage',
-  'vendor','third_party','third-party','thirdparty','external','extern','deps','dependencies','.venv','venv','__pycache__','Pods','Carthage','.build','DerivedData','.gradle','.dart_tool','.pub-cache','bin','obj']);
+  '.vscode','.idea','.codex','.claude','.cursor','dep','bundled','vendored','vendor','third_party','third-party','thirdparty','external','extern','deps','dependencies','.venv','venv','__pycache__','pods','carthage','.build','deriveddata','.gradle','.dart_tool','.pub-cache','bin','obj']);
 const inside=(file:string,root:string)=>root==='.'||file===root||file.startsWith(`${root}/`);
 const object=(value:unknown):value is Record<string,any>=>!!value&&typeof value==='object'&&!Array.isArray(value);
 const markers=/^(CMakeLists\.txt|Makefile|meson\.build|package\.json|angular\.json|project\.json|nx\.json|turbo\.json|lerna\.json|pnpm-workspace\.ya?ml|Package\.swift|project\.pbxproj|pom\.xml|(?:build|settings)\.gradle(?:\.kts)?|AndroidManifest\.xml|go\.(?:mod|work)|pyproject\.toml|requirements(?:[-.][\w-]+)?\.txt|Pipfile|setup\.py|Cargo\.toml|Gemfile|composer\.json|pubspec\.yaml|app\.json|app\.config\.json|.*\.(?:csproj|fsproj|vbproj|sln|slnx))$/;
@@ -36,15 +36,16 @@ const roles:Record<string,[string,string]>={
 const npmSignals:Record<string,string>={'@angular/core':'Angular',react:'React','react-native':'React Native',expo:'Expo',next:'Next.js',vue:'Vue',nuxt:'Nuxt',svelte:'Svelte','@sveltejs/kit':'SvelteKit',astro:'Astro',express:'Express',fastify:'Fastify','@nestjs/core':'NestJS',typescript:'TypeScript',nx:'Nx',turbo:'Turborepo',lerna:'Lerna'};
 
 /** Bounded breadth-first discovery keeps deep application trees from starving sibling manifests. */
-async function scanFiles(store:Store){
-  const files:string[]=[],queue=['.'];let inspectedEntries=0,truncated=false;
+async function scanFiles(store:Store,exclude:string[]){
+  const files:string[]=[],queue=['.'],skipped:{path:string;reason:string}[]=[];let inspectedEntries=0,truncated=false;
   for(let offset=0;offset<queue.length&&!truncated;offset++){
     const directory=queue[offset];if(directory!=='.')await store.safe(directory);
     const children:string[]=[];
     for await(const entry of await fs.opendir(path.join(store.root,directory))){
       if(inspectedEntries===ENTRY_LIMIT){truncated=true;break;}inspectedEntries++;
-      if(entry.isSymbolicLink()||excluded.has(entry.name)||entry.name.startsWith('.env'))continue;
       const file=path.posix.join(directory,entry.name);
+      const reason=entry.isSymbolicLink()?'symlink':excluded.has(entry.name.toLowerCase())||entry.name.startsWith('.env')?'dependency, generated output or tool configuration':exclude.some(p=>inside(file,p))?'explicit exclusion':undefined;
+      if(reason){skipped.push({path:entry.name.startsWith('.env')?'[environment file]':file,reason});continue;}
       if(entry.isDirectory())children.push(file);else if(entry.isFile())files.push(file);
     }
     queue.push(...children.sort((a,b)=>{
@@ -52,11 +53,12 @@ async function scanFiles(store:Store){
       return priority(a)-priority(b)||a.localeCompare(b);
     }));
   }
-  return {files:files.sort(),inspectedEntries,truncated};
+  return {files:files.sort(),inspectedEntries,truncated,skipped:skipped.slice(0,30),skippedCount:skipped.length};
 }
 
-export async function discover(store:Store){
-  const scan=await scanFiles(store),projects=new Map<string,Project>(),warnings:{path:string;reason:string}[]=[];
+export async function discover(store:Store,exclude:string[]=[]){
+  exclude=exclude.map(p=>relativePath.parse(p));
+  const scan=await scanFiles(store,exclude),projects=new Map<string,Project>(),warnings:{path:string;reason:string}[]=[];
   let manifestBytesRead=0;
   const add=(root:string,technology:string,evidence:string,library=false)=>{
     const p=projects.get(root)??{root,technologies:new Set<string>(),evidence:new Set<string>(),library:false};
@@ -205,7 +207,7 @@ export async function discover(store:Store){
     detections.push({root:p.root,technologies:[...p.technologies].sort(),evidence:[...p.evidence].sort().slice(0,6),evidenceCount:p.evidence.size,
       chapterId:`${id}/${chapterId}`,pathHintCount:paths.length,pathsTruncated:files.length>paths.length});
   }
-  return {schemaVersion:2,requiresDeveloperApproval:true,scan:{inspectedFiles:scan.files.length,inspectedEntries:scan.inspectedEntries,truncated:scan.truncated,limit:ENTRY_LIMIT,manifestBytesRead,manifestByteLimit:TOTAL_BYTES},
+  return {schemaVersion:2,requiresDeveloperApproval:true,scan:{inspectedFiles:scan.files.length,inspectedEntries:scan.inspectedEntries,truncated:scan.truncated,limit:ENTRY_LIMIT,excludedPaths:exclude,skipped:scan.skipped,skippedCount:scan.skippedCount,manifestBytesRead,manifestByteLimit:TOTAL_BYTES},
     pillars:definitions,detections,detectedProjectCount:candidates.length,projectsTruncated:candidates.length>PROJECT_LIMIT,
     warnings:warnings.slice(0,10),warningCount:warnings.length,unclassifiedSample:scan.files.filter(f=>!selected.has(f)).slice(0,30),
     note:'Heuristic candidates only. Frameworks are navigation signals, not facts or automatic pillar boundaries. Review and merge responsibility boundaries, expand sampled paths, and inspect unclassified or truncated areas. No facts or dependencies have been inferred.'};

@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Store } from './store.js';
 import { Fact, PillarDefinition, ChapterDefinition, Update, chapterKey, relativePath } from './model.js';
 import { Workflow, Patch, Admission } from './workflow.js';
-import { initialize, discover } from './init.js';
+import { initialize, discover, guidanceStatus, refreshGuidance } from './init.js';
 import { checkHook, hookNotifications, installHook } from './hooks.js';
 import { startHere, ownershipMap, pillarGraph } from './navigation.js';
 import { checkKnowledge, startTidy } from './maintenance.js';
@@ -34,14 +34,14 @@ export function operations(store:Store):Record<string,Operation> {
   return {
     lookup:op('Find up to five relevant facts and source paths without task state or source hashing. verify:true checks selected facts and dependencies; default freshness is not-checked.',Lookup.shape,a=>lookup(store,a)),
     assess:op('Read-only assessment of actual task-touched paths. No task needed. Compare candidate source changes; review:true supplies complete chapters and verification paths before corrections.',Assess.shape,a=>assessChanges(store,a)),
-    schema:op('Inspect an operation input schema and CLI payload guidance.',{operation:z.string()},async a=>{
+    schema:op('Inspect an operation input schema and CLI payload guidance.',{operation:z.string(),both:z.boolean().default(false)},async a=>{
       const entry=operations(store)[a.operation];if(!entry)throw new Error('Unknown operation.');
       const payload=['seed','admit','propose-facts'].includes(a.operation)?entry.schema.shape.facts
         :a.operation==='approve'?entry.schema.pick({pillars:true})
         :a.operation==='approve-chapters'?entry.schema.pick({chapters:true})
         :a.operation==='accept-facts'?entry.schema.shape.review
         :['bootstrap','seed-batch'].includes(a.operation)?entry.schema.omit({dryRun:true,approved:true,preflight:true}):entry.schema;
-      return {operation:a.operation,description:entry.description,inputSchema:toJsonSchemaCompat(entry.schema),cliPayloadSchema:toJsonSchemaCompat(payload)};
+      return {operation:a.operation,description:entry.description,...(a.both?{inputSchema:toJsonSchemaCompat(entry.schema)}:{}),cliPayloadSchema:toJsonSchemaCompat(payload)};
     }),
     bootstrap:op('Preflight an initial map and facts together; publication requires developer approval and the matching preflight token.',{pillars:z.array(PillarDefinition).min(1),...batch},a=>{
       if(!a.dryRun && a.approved!==true)throw new Error('Developer approval required for boundaries and facts.');
@@ -52,7 +52,8 @@ export function operations(store:Store):Record<string,Operation> {
       return store.bootstrap(undefined,a.batches,a.dryRun,a.preflight);
     }),
     init:op('Initialize or refresh repository guidance, MCP configuration, advisory hook and local Markdown.',{},()=>initialize(store)),
-    scan:op('Discover a proposed responsibility map; no approval or shared knowledge write.',{},()=>discover(store)),
+    'refresh-guidance':op('Refresh only managed guidance; preserve surrounding content and shared knowledge.',{},()=>refreshGuidance(store)),
+    scan:op('Discover a proposed responsibility map; no approval or shared knowledge write.',{exclude:z.array(relativePath).default([])},a=>discover(store,a.exclude)),
     approve:op('Approve the developer-reviewed responsibility map.',{pillars:z.array(PillarDefinition),standaloneReason:z.string().optional(),...approval,...verbose},a=>mutation('approve',a,()=>store.approveDefinitions(a.pillars,a.standaloneReason))),
     migrate:op('Migrate a legacy registry after developer approval.',approval,()=>store.migrate()),
     'approve-chapters':op('Add developer-approved chapters.',{pillarId:z.string(),chapters:z.array(ChapterDefinition),...approval,...verbose},a=>mutation('approve-chapters',a,()=>store.addChapters(a.pillarId,a.chapters))),
@@ -93,7 +94,8 @@ export function operations(store:Store):Record<string,Operation> {
         try{await store.safe(file);checks[file]='present';}catch{checks[file]='missing';valid=false;}
       }
       try{checks.pillars=(await store.read()).pillars.length;}catch(e:any){checks.registryError=e.message;valid=false;}
-      return {valid,...checks};
+      const guidance=await guidanceStatus(store);if(guidance.status!=='current')valid=false;
+      return {valid,...checks,guidance};
     }),
     version:op('Read framework version.',{},async()=>({version})),
   };

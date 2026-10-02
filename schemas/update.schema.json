@@ -75,7 +75,15 @@
                         "type": "object",
                         "properties": {
                           "path": {
-                            "$ref": "#/definitions/update/properties/touchedPaths/items"
+                            "allOf": [
+                              {
+                                "$ref": "#/definitions/update/properties/touchedPaths/items/allOf/0"
+                              },
+                              {
+                                "$ref": "#/definitions/update/properties/touchedPaths/items/allOf/1"
+                              }
+                            ],
+                            "description": "Supporting source path; may be outside the owning chapter. Evidence paths are automatically tracked for freshness without adding them to sourceScope."
                           },
                           "quote": {
                             "type": "string",
@@ -97,7 +105,8 @@
                       "items": {
                         "$ref": "#/definitions/update/properties/touchedPaths/items"
                       },
-                      "minItems": 1
+                      "minItems": 1,
+                      "description": "Owned source coverage, restricted to this chapter paths. For a chapter owning src: sourceScope [src], evidence [{path: shared/config.ts, quote: mode = 1}]. Cross-chapter citations belong in evidence, not sourceScope."
                     },
                     "dependsOn": {
                       "type": "array",

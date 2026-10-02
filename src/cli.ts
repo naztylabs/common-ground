@@ -14,7 +14,7 @@ async function json(file:string) {
     if(file==='-'){process.stdin.setEncoding('utf8');let text='';for await(const chunk of process.stdin)text+=chunk;return JSON.parse(text);}
     return JSON.parse(await fs.readFile(path.resolve(file),'utf8'));
   }
-  catch(error) { throw new Error(`Cannot read JSON from ${file}: ${(error as Error).message}`); }
+  catch(error) { const {GroundError}=await import('./errors.js');throw new GroundError('INVALID_JSON',`Cannot read JSON from ${file}: ${(error as Error).message}`,['input'],'Supply valid JSON through a readable file or stdin; inspect cground schema <operation>.'); }
 }
 // Adapt shell arguments to the same structured operations used by MCP.
 async function input(name:string, args:string[], values:Values):Promise<unknown> {
@@ -23,7 +23,8 @@ async function input(name:string, args:string[], values:Values):Promise<unknown>
   switch(name) {
     case 'lookup': return {path:values.path,query:args.join(' ')||undefined,verify:values.verify??false,...paging};
     case 'assess': return {paths:list(values.touched),review:values.review??false,...paging};
-    case 'schema': return {operation:first};
+    case 'schema': return {operation:first,both:values.both??false};
+    case 'scan': return {exclude:list(values.exclude)};
     case 'bootstrap': case 'seed-batch': return {...await json(first),dryRun:values['dry-run']??false,approved:values.approve,preflight:values.preflight};
     case 'approve': return {pillars:(await json(first)).pillars,approved:values.approve,verbose:values.verbose,standaloneReason:values['standalone-reason']};
     case 'approve-chapters': return {pillarId:first,chapters:(await json(second)).chapters,approved:values.approve,verbose:values.verbose};
@@ -92,7 +93,7 @@ async function main() {
   const {runOperation}=await import('./operations.js');
   let output=await runOperation(store,command.operation,await input(command.name,positionals,values));
   if(command.name==='schema') {
-    output={...output as object,example:payloadExamples[positionals[0]],note:'Operation schemas describe MCP arguments. CLI seed/admit/propose-facts payloads contain only the facts array; approval is supplied with --approve.'};
+    output={...output as object,example:payloadExamples[positionals[0]],note:'cliPayloadSchema describes the CLI JSON payload; --both includes inputSchema for MCP arguments. CLI seed/admit/propose-facts payloads contain only the facts array; approval is supplied with --approve.'};
   }
   if(['check','validate'].includes(command.name)) {
     let result=output as CheckResult;
@@ -113,9 +114,9 @@ async function main() {
   if(command.name==='doctor' && !(output as {valid:boolean}).valid)process.exitCode=1;
   if(process.stdout.isTTY && !values.json) {
     if(command.name==='doctor') {
-      const result=output as {valid:boolean;registryError?:string};
+      const result=output as {valid:boolean;registryError?:string;guidance:{status:string}};
       const missing=Object.entries(result).filter(([,value])=>value==='missing').map(([file])=>file);
-      output=result.valid?'Common Ground setup checks passed.':`Common Ground setup needs attention.\n${missing.map(file=>`Missing: ${file}`).join('\n')}${result.registryError?`\nRegistry: ${result.registryError}`:''}\nRun cground init to refresh setup, then review any registry errors with your agent.`;
+      output=result.valid?'Common Ground setup checks passed.':`Common Ground setup needs attention.\n${missing.map(file=>`Missing: ${file}`).join('\n')}${result.registryError?`\nRegistry: ${result.registryError}`:''}\nGuidance: ${result.guidance.status}. Run cground refresh-guidance for stale instructions; run cground init for missing setup. Review any registry errors with your agent.`;
     }
     if(command.name==='export') {const result=output as {path:string;changed:boolean};output=`Markdown ${result.changed?'refreshed':'already current'}: ${path.resolve(root,result.path)}`;}
     if(command.name==='tidy') {
@@ -127,9 +128,11 @@ async function main() {
   if(command.name==='init' && !values.json)output=initText(output as Awaited<ReturnType<typeof initialize>>,root);
   console.log(typeof output==='string'&&!values.json?output:JSON.stringify(output,null,2));
 }
-main().catch(error=>{
+main().catch(async error=>{
   // Schema issues are useful, but a raw Zod stack/dump is not a CLI explanation.
   const message=Array.isArray(error.issues)?error.issues.map((issue:{path:(string|number)[];message:string})=>`${issue.path.join('.')||'input'}: ${issue.message}`).join('; '):error.message;
-  console.error(`Common Ground: ${message}\nRun cground <command> --help for usage.`);
+  const args=process.argv.slice(2),end=args.indexOf('--');
+  if((end<0?args:args.slice(0,end)).includes('--json')){const {errorPayload}=await import('./errors.js');console.error(JSON.stringify({error:errorPayload(error)}));}
+  else console.error(`Common Ground: ${message}\nRun cground <command> --help for usage.`);
   process.exitCode=1;
 });

@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import {version} from './version.js';
 import { parse, modify, applyEdits, type ParseError } from 'jsonc-parser';
 import { Store } from './store.js';
 import { installHook } from './hooks.js';
@@ -30,10 +31,7 @@ export async function initialize(store: Store) {
   if (config.servers?.commonGround && config.servers.commonGround.command !== 'cground') throw new Error('Existing commonGround MCP entry conflicts; resolve it before init.');
   const entry = { type:'stdio', command:'cground', args:['serve','--root','${workspaceFolder}'] };
   const nextConfig = applyEdits(configText, modify(configText,['servers','commonGround'],entry,{formattingOptions:{insertSpaces:true,tabSize:2}}));
-  await managed(store,'AGENTS.md',rules);
-  await managed(store,'.common-ground/START_HERE.md',startGuide);
-  await managed(store,'.common-ground/POLICY.md',policy);
-  await managed(store,'.github/copilot-instructions.md','Common Ground repository knowledge rules are in [AGENTS.md](../AGENTS.md). Follow its Common Ground section when reading or maintaining pillars.\nCode is the source of truth; these notes only help navigation.\nFor repository questions, consult Common Ground and verify source. If knowledge is missing or stale, answer from source and prompt to update it.\nIf the developer disputes the code, clarify current versus intended behavior together. Record only verified, durable knowledge under the note-taking rules.');
+  await refreshGuidance(store);
   await managed(store,'.gitignore','.common-ground/local/');
   await fs.mkdir(path.dirname(configFile),{recursive:true});
   if (configText !== nextConfig) await fs.writeFile(configFile,nextConfig);
@@ -42,4 +40,27 @@ export async function initialize(store: Store) {
   const hook = await installHook(store);
   const markdown = await refreshKnowledgeExport(store);
   return exists ? {...proposal, hook, markdown} : { ...proposal, state:'bootstrap-required', next:bootstrapNext, hook, markdown };
+}
+
+const guidanceFiles:Record<string,string>={
+  'AGENTS.md':rules,
+  '.common-ground/START_HERE.md':startGuide,
+  '.common-ground/POLICY.md':policy,
+  '.github/copilot-instructions.md':'Common Ground repository knowledge rules are in [AGENTS.md](../AGENTS.md). Follow its Common Ground section when reading or maintaining pillars.\nCode is the source of truth; these notes only help navigation.\nFor repository questions, consult Common Ground and verify source. If knowledge is missing or stale, answer from source and prompt to update it.\nIf the developer disputes the code, clarify current versus intended behavior together. Record only verified, durable knowledge under the note-taking rules.',
+};
+export async function guidanceStatus(store:Store) {
+  const files:Record<string,string>={};
+  for(const [file,body] of Object.entries(guidanceFiles)) {
+    try {
+      const text=(await fs.readFile(await store.safe(file),'utf8')).replace(/\r\n/g,'\n');
+      const expected=`<!-- common-ground:start -->\n${body.trim()}\n<!-- common-ground:end -->`;
+      files[file]=text.includes(expected) && text.split('<!-- common-ground:start -->').length===2 && text.split('<!-- common-ground:end -->').length===2?'current':'stale';
+    } catch(error:any) { if(error.code!=='ENOENT')throw error;files[file]='missing'; }
+  }
+  return {installedVersion:version,basis:'Managed content compared with installed guidance templates',status:Object.values(files).every(value=>value==='current')?'current':'outdated',files,
+    next:'Run cground refresh-guidance to update managed instructions while preserving surrounding text.'};
+}
+export async function refreshGuidance(store:Store) {
+  for(const [file,body] of Object.entries(guidanceFiles))await managed(store,file,body);
+  return {writesKnowledge:false,...await guidanceStatus(store)};
 }

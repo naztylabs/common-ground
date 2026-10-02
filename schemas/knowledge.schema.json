@@ -90,7 +90,15 @@
                               "type": "object",
                               "properties": {
                                 "path": {
-                                  "$ref": "#/definitions/knowledge/properties/pillars/items/properties/chapters/items/properties/paths/items"
+                                  "allOf": [
+                                    {
+                                      "$ref": "#/definitions/knowledge/properties/pillars/items/properties/chapters/items/properties/paths/items/allOf/0"
+                                    },
+                                    {
+                                      "$ref": "#/definitions/knowledge/properties/pillars/items/properties/chapters/items/properties/paths/items/allOf/1"
+                                    }
+                                  ],
+                                  "description": "Supporting source path; may be outside the owning chapter. Evidence paths are automatically tracked for freshness without adding them to sourceScope."
                                 },
                                 "quote": {
                                   "type": "string",
@@ -112,7 +120,8 @@
                             "items": {
                               "$ref": "#/definitions/knowledge/properties/pillars/items/properties/chapters/items/properties/paths/items"
                             },
-                            "minItems": 1
+                            "minItems": 1,
+                            "description": "Owned source coverage, restricted to this chapter paths. For a chapter owning src: sourceScope [src], evidence [{path: shared/config.ts, quote: mode = 1}]. Cross-chapter citations belong in evidence, not sourceScope."
                           },
                           "dependsOn": {
                             "type": "array",

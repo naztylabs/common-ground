@@ -54,3 +54,9 @@ Invalid JSON is reported without aborting the entire bootstrap. Filename/languag
 Repository owners can define an approved pillar/chapter for an unsupported technology today. Automatic discovery is a convenience, not a prerequisite for using the framework. For new built-in discovery rules, preserve bounded reads, explicit uncertainty, approval requirements and non-overlapping ownership. Add positive examples alongside false-positive, mixed-monorepo and malformed-input cases. Never populate factual claims from detection labels alone.
 
 C/C++ source extensions and CMake/Meson manifests produce C/C++ responsibility candidates. Root C/C++ signals take precedence over incidental PHP utilities in the same project root; nested manifest roots remain separate candidates. These are heuristics and require boundary review.
+
+### Explicit scan boundaries
+
+Use `cground scan --exclude odd-bundle,tools/generated` (MCP scan `exclude: ["odd-bundle", "tools/generated"]`) for repository-specific literal paths. Exclusions apply before descent, accept trailing slashes, and reject absolute or traversal paths. They apply only to this scan; inspect and use its returned map for bootstrap. They do not change existing chapter ownership or source verification.
+
+Built-in exclusions also cover `dep`, `bundled`, `vendored`, `.vscode`, `.idea`, `.codex`, `.claude` and `.cursor`. Directory-name matching is case-insensitive. `lib` and `libs` remain eligible because they often contain first-party code. Unknown dependency layouts still require explicit exclusions and source review; discovery does not prove authorship. `scan.skipped` reports up to 30 exclusions with reasons and `skippedCount` reports the total. Environment filenames are redacted. Excluded subtrees consume one encountered entry but none of their descendants consume the traversal budget.

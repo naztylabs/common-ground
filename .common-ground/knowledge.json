@@ -205,7 +205,7 @@
             "src/discovery.ts",
             "docs/discovery.md"
           ],
-          "revision": 5,
+          "revision": 6,
           "facts": [
             {
               "id": "bounded-discovery",
@@ -253,11 +253,11 @@
               "evidence": [
                 {
                   "path": "src/init.ts",
-                  "quote": "await managed(store,'AGENTS.md',rules);"
+                  "quote": "'AGENTS.md':rules,"
                 },
                 {
                   "path": "src/init.ts",
-                  "quote": "await managed(store,'.common-ground/POLICY.md',policy);"
+                  "quote": "'.common-ground/POLICY.md':policy,"
                 },
                 {
                   "path": "src/guidance.ts",
@@ -290,7 +290,7 @@
               "evidence": [
                 {
                   "path": "src/init.ts",
-                  "quote": "await managed(store,'.common-ground/START_HERE.md',startGuide);"
+                  "quote": "'.common-ground/START_HERE.md':startGuide,"
                 },
                 {
                   "path": "src/guidance.ts",
@@ -305,9 +305,9 @@
             }
           ],
           "sources": {
-            "src/discovery.ts": "2f6bfedc2a1cdb8a6e37558582fe9e32d631f30f48ff909596ea64d2a7144320",
-            "src/guidance.ts": "68f537afbcd68803fa1abd169400da3334aeb9711fac3e6c8545ef8c93f72526",
-            "src/init.ts": "27238353745ceaac00b9831068245e87b2505804304cf7eef3a52325c060ecc4"
+            "src/discovery.ts": "9456e49499bb633a13c99d45b86162d205806d7f194a4f5504441aa3bf27a6a9",
+            "src/guidance.ts": "f96358972ae5672b2bf5f1288ca1a53ae2de28a06d07a572fc2081ea6ae8291c",
+            "src/init.ts": "81acbc51c0015e09ef90e2406de4bd29eace7a63f2432ded35fe5e7ca44ae004"
           },
           "dependencyFingerprints": {}
         }
