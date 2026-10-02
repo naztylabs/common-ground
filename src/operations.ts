@@ -27,7 +27,7 @@ export function operations(store:Store):Record<string,Operation> {
     const result=await write();if(args.verbose)return result;
     const chapterIds=operation==='approve'?args.pillars.flatMap((p:any)=>p.chapters.map((c:any)=>`${p.id}/${c.id}`)):operation==='approve-chapters'?args.chapters.map((c:any)=>`${args.pillarId}/${c.id}`):[args.chapterId];
     const factIds=(args.facts??[]).map((f:any)=>`${args.chapterId}/${f.id}`);
-    return {operation,approved:true,chapterCount:chapterIds.length,chapterIds,factCount:factIds.length,factIds,validation:'structure and exact evidence; not semantic verification',outputPath:'.common-ground/knowledge.json',next:operation.startsWith('approve')?'Boundaries approved; facts still require developer review and approval.':'Run validate, then start or continue the task workflow.'};
+    return {operation,approved:true,chapterCount:chapterIds.length,chapterIds,factCount:factIds.length,factIds,validation:'structure and exact evidence; not semantic verification',outputPath:'.common-ground/knowledge.json',next:operation.startsWith('approve')?'Boundaries approved; facts still require developer review and approval.':'Run validate, then use lookup as needed. Task contexts are optional.'};
   };
   const verbose={verbose:z.boolean().default(false)};
   const check=op('Check all or selected knowledge for structure, exact evidence and freshness. Stale results list affected IDs and offer cleanup. cleanup:true requires developer-requested cleanup; it creates a scoped tidyId for the calling agent to verify and submit corrections.',{target:z.string().default('all'),cleanup:z.boolean().default(false),allResults:z.boolean().default(false),...paging},a=>checkKnowledge(store,a.target,a.cleanup,a.cursor,a.limit,undefined,a.allResults));
@@ -95,7 +95,7 @@ export function operations(store:Store):Record<string,Operation> {
       }
       try{checks.pillars=(await store.read()).pillars.length;}catch(e:any){checks.registryError=e.message;valid=false;}
       const guidance=await guidanceStatus(store);if(guidance.status!=='current')valid=false;
-      return {valid,...checks,guidance};
+      return {valid,...checks,guidance,next:valid?null:checks.registryError?'Review the registry error and repair it from source or Git history.':guidance.next??'Run cground init to repair missing setup.'};
     }),
     version:op('Read framework version.',{},async()=>({version})),
   };

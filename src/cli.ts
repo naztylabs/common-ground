@@ -14,7 +14,12 @@ async function json(file:string) {
     if(file==='-'){process.stdin.setEncoding('utf8');let text='';for await(const chunk of process.stdin)text+=chunk;return JSON.parse(text);}
     return JSON.parse(await fs.readFile(path.resolve(file),'utf8'));
   }
-  catch(error) { const {GroundError}=await import('./errors.js');throw new GroundError('INVALID_JSON',`Cannot read JSON from ${file}: ${(error as Error).message}`,['input'],'Supply valid JSON through a readable file or stdin; inspect cground schema <operation>.'); }
+  catch(error) {
+    const {GroundError}=await import('./errors.js');const code=(error as NodeJS.ErrnoException).code;
+    throw new GroundError(code==='ENOENT'?'INPUT_NOT_FOUND':error instanceof SyntaxError?'INVALID_JSON':'INPUT_UNREADABLE',
+      `Cannot read JSON from ${file}: ${(error as Error).message}`,[file],
+      code==='ENOENT'?'Check the input filename, or supply the payload with --stdin.':error instanceof SyntaxError?'Correct the JSON syntax; inspect cground schema <operation>.':'Check the input file permissions and ensure it is a readable regular file.');
+  }
 }
 // Adapt shell arguments to the same structured operations used by MCP.
 async function input(name:string, args:string[], values:Values):Promise<unknown> {

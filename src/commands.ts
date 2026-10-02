@@ -93,8 +93,16 @@ export const payloadExamples:Record<string,unknown>={seed:[factExample],admit:[f
   'seed-batch':{batches:[{chapterId:'runtime/overview',facts:[factExample]}]},
   bootstrap:{pillars:[{id:'runtime',title:'Runtime',scope:'Application runtime behavior.',excludes:'Build tooling.',chapters:[{id:'overview',title:'Overview',scope:'Application runtime behavior.',excludes:'Build tooling.',paths:['src']}]}],batches:[{chapterId:'runtime/overview',facts:[factExample]}]}};
 export type Values = Partial<Record<Flag,string|boolean>>;
+const usageError=(code:string,message:string,fields:string[],recovery:string)=>Object.assign(new Error(message),{code,fields,recovery});
 export function parseCommand(argv:string[]) {
-  const parsed = parseArgs({args:argv,options,allowPositionals:true,strict:true});
+  const parsed=(()=>{
+  try { return parseArgs({args:argv,options,allowPositionals:true,strict:true}); }
+  catch(error) {
+    const failure=error as Error & {code?:string};
+    throw usageError(failure.code==='ERR_PARSE_ARGS_INVALID_OPTION_VALUE'?'INVALID_OPTION_VALUE':failure.code??'INVALID_ARGUMENT',failure.message,
+      failure.message.match(/--[a-z][a-z-]*/g)??[], 'Check the named option and its value using cground <command> --help.');
+  }
+  })();
   const values:Values = parsed.values;
   const words = [...parsed.positionals];
   const help = values.help === true || words[0] === 'help';
@@ -111,7 +119,7 @@ export function parseCommand(argv:string[]) {
     return {values,help:true,command:undefined,positionals:[],group:name};
   }
   const command=commands.find(c=>c.name===name);
-  if(!command)throw new Error(`Unknown command "${name}". Run cground --help.`);
+  if(!command)throw usageError('UNKNOWN_COMMAND',`Unknown command "${name}". Run cground --help.`,[name],'Run cground --help and choose a listed command.');
   for(const flag of Object.keys(values))if(!['help','root','json','example',...command.flags].includes(flag))throw new Error(`Option --${flag} is not supported by ${name}. Run cground ${name} --help.`);
   if(values.example && !help)throw new Error('Use --example with --help.');
   if(!help) {
@@ -124,9 +132,10 @@ export function parseCommand(argv:string[]) {
     const maximum=args.some(a=>a.includes('...'))?Infinity:args.length;
     if(words.length<minimum || words.length>maximum)throw new Error(`Usage: cground ${name} ${command.arguments}. Run cground ${name} --help.`);
     if(['assess','task assess'].includes(name) && values.touched===undefined)throw new Error('Supply --touched for actual task paths.');
-    if(values.limit!==undefined && (!/^\d+$/.test(String(values.limit)) || Number(values.limit)<1 || Number(values.limit)>20))throw new Error('--limit must be an integer from 1 to 20.');
-    if(values.cleanup!==undefined && !['y','n'].includes(String(values.cleanup).toLowerCase()))throw new Error('Use --cleanup y or --cleanup n.');
-    if(values.profile!==undefined && !['compact','full'].includes(String(values.profile)))throw new Error('Use --profile compact or --profile full.');
+    const maxLimit=name==='lookup'?5:20;
+    if(values.limit!==undefined && (!/^\d+$/.test(String(values.limit)) || Number(values.limit)<1 || Number(values.limit)>maxLimit))throw usageError('INVALID_OPTION_VALUE',`--limit must be an integer from 1 to ${maxLimit}.`,['--limit'],`Supply --limit with an integer from 1 to ${maxLimit}.`);
+    if(values.cleanup!==undefined && !['y','n'].includes(String(values.cleanup).toLowerCase()))throw usageError('INVALID_OPTION_VALUE','Use --cleanup y or --cleanup n.',['--cleanup'],'Choose y or n for --cleanup.');
+    if(values.profile!==undefined && !['compact','full'].includes(String(values.profile)))throw usageError('INVALID_OPTION_VALUE','Use --profile compact or --profile full.',['--profile'],'Choose compact or full for --profile.');
   }
   return {values,help,command,positionals:words,group:undefined};
 }

@@ -109,3 +109,49 @@ test('citation-only changes require dependent chapter review and cannot smuggle 
  request.reviews[1].maintenance=[{factId:'mode',action:'correct',reason:'An unrelated semantic change is not permitted.'}];
  await assert.rejects(runOperation(store,'prepare-patch',request),/relevant touched paths/);
 });
+test('lookup distinguishes evidence, source coverage and ownership hints with explicit term coverage',async t=>{
+ const {store,write,fact}=await fixture(t);
+ await write('src/other.ts','export const startup = true;');
+ await store.admit('runtime/main',[{...fact,id:'startup',statement:'The service starts with startup enabled.',sourceScope:['src/other.ts'],evidence:[{path:'src/other.ts',quote:'startup = true'}]}]);
+ const direct=await runOperation(store,'lookup',{path:'src/main.ts',query:'mode deletion'});
+ assert.equal(direct.items[0].matchReason,'direct-evidence');assert.deepEqual(direct.items[0].matchedTerms,['mode']);assert.deepEqual(direct.items[0].unmatchedTerms,['deletion']);assert.equal(direct.items[0].relevance,'partial-query');
+ const hint=direct.items.find(i=>i.factId.endsWith('/startup'));assert.equal(hint.matchReason,'ownership-suggestion');assert.equal(hint.relevance,'ownership-only');assert.deepEqual(hint.matchedPaths,['src']);
+ const scope=await runOperation(store,'lookup',{path:'src/unrecorded.ts'});assert.equal(scope.items[0].matchReason,'source-scope');assert.equal(scope.items[0].queryCoverage,null);
+ const query=await runOperation(store,'lookup',{query:'mode deletion'});assert.equal(query.items[0].matchReason,'query-terms');assert.deepEqual(query.items[0].queryCoverage,{matched:1,total:2});
+ const absent=await runOperation(store,'lookup',{query:'deletion'});assert.equal(absent.state,'no-matches');assert.match(absent.next,/Read source/);
+});
+test('guidance refresh reports changes once, then unchanged files and no next action',async t=>{
+ const {store,write}=await fixture(t);
+ const first=await runOperation(store,'refresh-guidance');assert.equal(first.changedFiles.length,4);assert.deepEqual(first.unchangedFiles,[]);assert.equal(first.next,null);
+ const second=await runOperation(store,'refresh-guidance');assert.deepEqual(second.changedFiles,[]);assert.deepEqual(second.unchangedFiles,first.changedFiles);assert.equal(second.next,null);
+ await write('AGENTS.md','<!-- common-ground:start -->\nOld instructions\n<!-- common-ground:end -->');
+ assert.match((await runOperation(store,'doctor')).guidance.next,/refresh-guidance/);
+ const updated=await runOperation(store,'refresh-guidance');assert.deepEqual(updated.changedFiles,['AGENTS.md']);assert.equal(updated.unchangedFiles.length,3);
+ await initialize(store);const healthy=await runOperation(store,'doctor');assert.equal(healthy.valid,true);assert.equal(healthy.next,null);assert.equal(healthy.guidance.next,null);
+});
+test('specific JSON errors distinguish files, syntax, invalid options, commands and corrupt registries',async t=>{
+ const {cli,write}=await fixture(t);
+ for(const [args,input,code,field] of [
+  [['prepare-patch','absent.json'],undefined,'INPUT_NOT_FOUND','absent.json'],
+  [['prepare-patch','--stdin'],'{','INVALID_JSON','-'],
+  [['lookup','mode','--limit','6'],undefined,'INVALID_OPTION_VALUE','--limit'],
+  [['lookup','mode','--limit','bad'],undefined,'INVALID_OPTION_VALUE','--limit'],
+  [['serve','--profile','wrong'],undefined,'INVALID_OPTION_VALUE','--profile'],
+  [['validate','--cleanup','wrong'],undefined,'INVALID_OPTION_VALUE','--cleanup'],
+  [['loookup'],undefined,'UNKNOWN_COMMAND','loookup'],
+ ]){const result=cli([...args,'--json'],input);assert.equal(result.status,1);const error=JSON.parse(result.stderr).error;assert.equal(error.code,code);assert.ok(error.fields.includes(field));assert.doesNotMatch(error.recovery,/reload.*knowledge/i);}
+ for(const text of ['{','null','{}',JSON.stringify({schemaVersion:2,pillars:[{}]})]){
+  await write('.common-ground/knowledge.json',text);const result=cli(['lookup','mode','--json']);assert.equal(result.status,1);const error=JSON.parse(result.stderr).error;assert.equal(error.code,'REGISTRY_INVALID');assert.deepEqual(error.fields,['.common-ground/knowledge.json']);
+ }
+});
+test('removed evidence after preparation is a SOURCE_CONFLICT with the path and leaves registry unchanged',async t=>{
+ const {store,patch,write,cli}=await fixture(t);const before=await fs.readFile(store.file('knowledge.json'),'utf8');
+ const prepared=await runOperation(store,'prepare-patch',patch());await write('shared/config.ts','Entirely different contents');
+ const result=cli(['commit',prepared.proposalId,'--json']);assert.equal(result.status,1);const error=JSON.parse(result.stderr).error;assert.equal(error.code,'SOURCE_CONFLICT');assert.ok(error.fields.includes('shared/config.ts'));assert.match(error.recovery,/Re-read/);
+ assert.equal(await fs.readFile(store.file('knowledge.json'),'utf8'),before);
+});
+test('successful batch publication suggests lookup rather than mandatory task startup',async t=>{
+ const {store,fact}=await fixture(t);await store.addChapters('runtime',[{id:'shared',title:'Shared defaults',scope:'Synthetic shared configuration.',excludes:'Runtime implementation.',paths:['shared']}]);
+ const batches=[{chapterId:'runtime/shared',facts:[{...fact,sourceScope:['shared'],evidence:[{path:'shared/config.ts',quote:'defaultMode = 1'}]}]}];
+ const preflight=await runOperation(store,'seed-batch',{batches,dryRun:true});const result=await runOperation(store,'seed-batch',{batches,approved:true,preflight:preflight.preflight});assert.match(result.next,/lookup/);assert.match(result.next,/optional/);assert.doesNotMatch(result.next,/Start a task context/);
+});

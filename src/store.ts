@@ -53,10 +53,15 @@ export class Store {
   }
   async read(): Promise<RegistryRecord> {
     await this.safe('.common-ground/knowledge.json');
-    const raw = JSON.parse(await fs.readFile(this.file('knowledge.json'),'utf8'));
-    if (raw.schemaVersion === 1) throw new Error('Schema v1 requires migration: cground migrate --approve, then cground init.');
-    return this.validateRegistry(raw);
+    const text=await fs.readFile(this.file('knowledge.json'),'utf8');
+    let raw:unknown;
+    try { raw=JSON.parse(text); }
+    catch(error) { throw new GroundError('REGISTRY_INVALID',`Invalid registry JSON: ${(error as Error).message}`,['.common-ground/knowledge.json'],'Repair the registry JSON from a known-good Git revision; do not reinitialize over it.'); }
+    if(raw && typeof raw==='object' && 'schemaVersion' in raw && raw.schemaVersion===1)throw new GroundError('REGISTRY_MIGRATION_REQUIRED','Schema v1 requires migration: cground migrate --approve, then cground init.',['.common-ground/knowledge.json'],'Review and approve the schema migration before running cground migrate --approve.');
+    try { return this.validateRegistry(raw); }
+    catch(error) { throw new GroundError('REGISTRY_INVALID',`Invalid registry: ${(error as Error).message}`,['.common-ground/knowledge.json'],'Repair invalid records or references from source and Git history; do not replace the registry with an empty one.'); }
   }
+
   async persist(registry: RegistryRecord) {
     const validated = this.validateRegistry(registry);
     await this.atomic('knowledge.json',validated);
@@ -249,22 +254,22 @@ export class Store {
       }
       // Include live upstream sources as well as the chapters being seeded in conflict checks.
       const context=await this.context(registry,required);
-      for(const key of keys)if(!same(this.chapter(registry,key).sources,(context[key] as {snapshot:unknown}).snapshot))throw new Error('Source changed during bootstrap.');
+      for(const key of keys)if(!same(this.chapter(registry,key).sources,(context[key] as {snapshot:unknown}).snapshot))throw new GroundError('SOURCE_CONFLICT','Source changed during bootstrap.',['verification'],'Re-read the changed source and documentation, then prepare a new proposal or bootstrap preflight.');
       const token=hash(stable({original:original??null,registry,context}));
       if(!dryRun){
         if(!expected || expected!==token)throw new GroundError('PREFLIGHT_CONFLICT','Preflight conflict: rerun --dry-run and review the current payload and sources.',['preflight'],'Rerun --dry-run and review the new payload and sources before publishing with the new token.');
         // Repeat source checks immediately before publication, under the writer lock.
-        if(!same(context,await this.context(registry,required)))throw new Error('Source changed during bootstrap.');
+        if(!same(context,await this.context(registry,required)))throw new GroundError('SOURCE_CONFLICT','Source changed during bootstrap.',['verification'],'Re-read the changed source and documentation, then prepare a new proposal or bootstrap preflight.');
         let current:RegistryRecord|undefined;
         try { current=await this.read(); } catch(e:any) { if(e.code!=='ENOENT')throw e; }
-        if(!same(original??null,current??null))throw new Error('Registry changed during bootstrap.');
+        if(!same(original??null,current??null))throw new GroundError('REGISTRY_CONFLICT','Registry changed during bootstrap.',['.common-ground/knowledge.json'],'Reload the current chapters and review their revisions before preparing again.');
         await this.persist(registry);
       }
       return {dryRun,validation:'structure, exact quotations and freshness; not semantic verification',preflight:token,
         approvalRequired:dryRun?{boundaries:!!definitions,facts:true}:false,
         approved:dryRun?undefined:{boundaries:!!definitions,facts:true,content:token},
         chapters:Object.keys(counts),factCount:batches.reduce((n,b)=>n+b.facts.length,0),sourceFileCounts:counts,
-        outputPath:'.common-ground/knowledge.json',next:dryRun?'Review boundaries and facts with the developer, then apply this payload with --approve and --preflight.':'Start a task context.'};
+        outputPath:'.common-ground/knowledge.json',next:dryRun?'Review boundaries and facts with the developer, then apply this payload with --approve and --preflight.':'Use cground lookup for relevant facts and source paths. Task contexts are optional for deferred additions or aggregate reporting.'};
     };
     return dryRun?execute():this.lock(execute);
   }
@@ -371,7 +376,7 @@ export class Store {
     const changed=new Set<string>();
     for(const review of request.reviews){
       const old=this.chapter(registry,review.chapterId);
-      if(old.revision!==review.expectedRevision)throw new Error('Chapter revision conflict; reload.');
+      if(old.revision!==review.expectedRevision)throw new GroundError('REGISTRY_CONFLICT','Chapter revision conflict; reload.',['.common-ground/knowledge.json'],'Reload the current chapters and review their revisions before preparing again.');
       unique(review.reviewedFactIds,'reviewed fact IDs');unique(review.invalidatedFactIds,'invalidated fact IDs');
       unique((review.maintenance??[]).map(m=>m.factId),'maintenance fact IDs');
       if(!same([...review.reviewedFactIds].sort(),old.facts.map(f=>f.id).sort()))throw new Error('Every existing fact must be reviewed.');
@@ -440,10 +445,14 @@ export class Store {
     return this.lock(async()=>{
       await this.safe(`.common-ground/local/${id}.json`);
       const proposal=JSON.parse(await fs.readFile(this.file(`local/${id}.json`),'utf8'));const registry=await this.read();
-      if(hash(stable(registry))!==proposal.registryHash)throw new Error('Knowledge changed; prepare a new proposal.');
+      if(hash(stable(registry))!==proposal.registryHash)throw new GroundError('REGISTRY_CONFLICT','Knowledge changed; prepare a new proposal.',['.common-ground/knowledge.json'],'Reload the current chapters and review their revisions before preparing again.');
+      // Detect changed or deleted quotations before semantic validation can mask the source conflict.
+      const reviewed=await this.fileSnapshots(Object.keys(proposal.reviewSnapshots));
+      const changedFiles=Object.keys(proposal.reviewSnapshots).filter(file=>reviewed[file]!==proposal.reviewSnapshots[file]);
+      if(changedFiles.length)throw new GroundError('SOURCE_CONFLICT',changedFiles.some(file=>proposal.request.verification.sourceFiles.includes(file))?'Source changed during review; prepare a new proposal.':'Reviewed source or documentation changed; prepare a new proposal.',changedFiles,'Re-read the changed source and documentation, then prepare a new proposal.');
       const evaluated=await this.evaluate(proposal.request,registry);
-      if(!same(evaluated.snapshots,proposal.snapshots))throw new Error('Source changed during review; prepare a new proposal.');
-      if(!same(evaluated.reviewSnapshots,proposal.reviewSnapshots))throw new Error('Reviewed source or documentation changed; prepare a new proposal.');
+      if(!same(evaluated.snapshots,proposal.snapshots))throw new GroundError('SOURCE_CONFLICT','Source changed during review; prepare a new proposal.',['verification'],'Re-read the changed source and documentation, then prepare a new proposal or bootstrap preflight.');
+      if(!same(evaluated.reviewSnapshots,proposal.reviewSnapshots))throw new GroundError('SOURCE_CONFLICT','Reviewed source or documentation changed; prepare a new proposal.',['verification'],'Re-read the changed source and documentation, then prepare a new proposal or bootstrap preflight.');
       let task:any, taskName:string|undefined;
       if(proposal.taskId){
         if(!/^[0-9a-f-]{36}$/.test(proposal.taskId))throw new Error('Invalid task ID');
