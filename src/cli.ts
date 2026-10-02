@@ -2,7 +2,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { parseCommand, helpText, type Values } from './commands.js';
+import { parseCommand, helpText, payloadExamples, type Values } from './commands.js';
 import { version } from './version.js';
 import type { checkKnowledge, startTidy } from './maintenance.js';
 import type { initialize } from './init.js';
@@ -10,7 +10,10 @@ import type { initialize } from './init.js';
 type CheckResult = Awaited<ReturnType<typeof checkKnowledge>>;
 const list = (value:string|boolean|undefined) => value ? String(value).split(',') : [];
 async function json(file:string) {
-  try { return JSON.parse(await fs.readFile(path.resolve(file),'utf8')); }
+  try {
+    if(file==='-'){process.stdin.setEncoding('utf8');let text='';for await(const chunk of process.stdin)text+=chunk;return JSON.parse(text);}
+    return JSON.parse(await fs.readFile(path.resolve(file),'utf8'));
+  }
   catch(error) { throw new Error(`Cannot read JSON from ${file}: ${(error as Error).message}`); }
 }
 // Adapt shell arguments to the same structured operations used by MCP.
@@ -18,9 +21,13 @@ async function input(name:string, args:string[], values:Values):Promise<unknown>
   const [first,second,third]=args;
   const paging={cursor:values.cursor,limit:values.limit===undefined?undefined:Number(values.limit)};
   switch(name) {
-    case 'approve': return {pillars:(await json(first)).pillars,approved:values.approve,standaloneReason:values['standalone-reason']};
-    case 'approve-chapters': return {pillarId:first,chapters:(await json(second)).chapters,approved:values.approve};
-    case 'seed': case 'admit': return {chapterId:first,facts:await json(second),approved:values.approve};
+    case 'lookup': return {path:values.path,query:args.join(' ')||undefined,verify:values.verify??false,...paging};
+    case 'assess': return {paths:list(values.touched),review:values.review??false,...paging};
+    case 'schema': return {operation:first};
+    case 'bootstrap': case 'seed-batch': return {...await json(first),dryRun:values['dry-run']??false,approved:values.approve,preflight:values.preflight};
+    case 'approve': return {pillars:(await json(first)).pillars,approved:values.approve,verbose:values.verbose,standaloneReason:values['standalone-reason']};
+    case 'approve-chapters': return {pillarId:first,chapters:(await json(second)).chapters,approved:values.approve,verbose:values.verbose};
+    case 'seed': case 'admit': return {chapterId:first,facts:await json(second),approved:values.approve,verbose:values.verbose};
     case 'migrate': return {approved:values.approve};
     case 'task start': return {paths:list(values.touched),signal:values.signal};
     case 'task assess': return {taskId:first,paths:list(values.touched),...paging};
@@ -31,7 +38,7 @@ async function input(name:string, args:string[], values:Values):Promise<unknown>
     case 'accept-facts': return {taskId:first,review:await json(second),approved:values.approve};
     case 'start': case 'owners': return {path:values.path,signal:values.signal??(args.join(' ')||undefined),...paging};
     case 'graph': return {pillarId:first,...paging};
-    case 'check': case 'validate': return {target:first??'all',cleanup:String(values.cleanup).toLowerCase()==='y',...paging};
+    case 'check': case 'validate': return {target:first??'all',cleanup:String(values.cleanup).toLowerCase()==='y',allResults:values['all-results']??false,...paging};
     case 'review': return {target:first??'all',staged:values.staged??false,evidence:values.evidence??false,...paging};
     case 'tidy': return {target:first,...paging};
     case 'review-checklist': return {chapterIds:args,touchedPaths:list(values.touched),...paging};
@@ -58,6 +65,12 @@ function checkText(result:CheckResult) {
     `${result.summary.selectedFacts} selected facts; ${result.summary.needsReview} need review.`];
   if(result.summary.unpopulatedChapters.length)lines.push(`Empty chapters: ${result.summary.unpopulatedChapters.join(', ')}. Complete approved setup with your agent.`);
   if(!result.summary.selectedFacts)lines.push('No facts recorded. Complete setup with your agent.');
+  for(const item of result.items){
+    lines.push(`${item.factId}: ${item.status}`);
+    for(const error of item.errors)lines.push(`  ${error}`);
+    if(item.changedPaths.length)lines.push(`  Changed: ${item.changedPaths.join(', ')}`);
+  }
+  if(result.nextCursor)lines.push(`More results: rerun with --cursor ${result.nextCursor}`);
   if(result.cleanup)lines.push(`Cleanup plan: ${result.cleanup.tidyId}`, 'Ask your agent to review the affected source and apply verified corrections.');
   lines.push(`Review changes with your agent: cground review`, `Markdown: ${result.markdown.path}`);
   return lines.join('\n');
@@ -67,6 +80,10 @@ async function main() {
   if(parsed.help) { console.log(helpText(parsed.command,parsed.group)); return; }
   const {command,values,positionals}=parsed;
   if(!command) { console.log(values.json?JSON.stringify({version}):version); return; }
+  if(['bootstrap','seed-batch'].includes(command.name) && values['dry-run']===true) {
+    const {Store}=await import('./store.js');const {runOperation}=await import('./operations.js');
+    console.log(JSON.stringify(await runOperation(new Store(String(values.root??process.cwd())),command.operation,await input(command.name,positionals,values)),null,2));return;
+  }
   if(command.flags.includes('approve') && values.approve!==true)throw new Error('Developer approval required: inspect the proposal, then pass --approve.');
   const root=String(values.root??process.cwd());
   const {Store}=await import('./store.js');
@@ -74,6 +91,9 @@ async function main() {
   if(command.name==='serve') { const {serve}=await import('./server.js'); await serve(store,values.profile as string|undefined); return; }
   const {runOperation}=await import('./operations.js');
   let output=await runOperation(store,command.operation,await input(command.name,positionals,values));
+  if(command.name==='schema') {
+    output={...output as object,example:payloadExamples[positionals[0]],note:'Operation schemas describe MCP arguments. CLI seed/admit/propose-facts payloads contain only the facts array; approval is supplied with --approve.'};
+  }
   if(['check','validate'].includes(command.name)) {
     let result=output as CheckResult;
     if(result.cleanupPrompt) {
@@ -83,7 +103,7 @@ async function main() {
       if(values.cleanup===undefined && process.stdin.isTTY && process.stdout.isTTY && process.stderr.isTTY && !values.json) {
         const prompt=createInterface({input:process.stdin,output:process.stderr});
         let answer:string;try {answer=await prompt.question('Start automatic cleanup? [y/N] ');}finally {prompt.close();}
-        if(['y','yes'].includes(answer.trim().toLowerCase()))result=await checkKnowledge(store,result.target,true,values.cursor as string|undefined,values.limit===undefined?undefined:Number(values.limit),result.affected);
+        if(['y','yes'].includes(answer.trim().toLowerCase()))result=await checkKnowledge(store,result.target,true,values.cursor as string|undefined,values.limit===undefined?undefined:Number(values.limit),result.affected,values['all-results']===true);
       } else if(values.cleanup===undefined)console.error('Start automatic cleanup? Use --cleanup y or --cleanup n (agent verification required).');
     }
     if(!result.valid)process.exitCode=1;

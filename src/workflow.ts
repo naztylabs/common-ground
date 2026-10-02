@@ -1,3 +1,5 @@
+import { changedFacts } from './access.js';
+import { reviewDocuments } from './review-files.js';
 import { factReview, type FactChange } from './review.js';
 import { promises as fs } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -13,7 +15,7 @@ const within = (file: string, scope: string) => file === scope || file.startsWit
 const overlaps = (a: string, b: string) => within(a,b) || within(b,a);
 const revisionReview = z.object({chapterId:chapterKey, expectedRevision:z.number().int().positive(), reviewedAllFacts:z.literal(true)}).strict();
 export const Patch = z.object({
-  taskId:z.string().uuid(), chapterId:chapterKey, factIds:Update.shape.factIds,
+  taskId:z.string().uuid().optional(), chapterId:chapterKey, factIds:Update.shape.factIds,
   touchedPaths:z.array(relativePath), tidyId:z.string().uuid().optional(), verification:Verification,
   reviews:z.array(revisionReview.extend({
     replacements:z.array(Fact).default([]), removeFactIds:z.array(z.string()).default([]),
@@ -65,15 +67,16 @@ export class Workflow {
     const routes=matches?{items:matches.items.map(({chapterId,title})=>({chapterId,title})),total:matches.total,nextCursor:matches.nextCursor}:
       page(owners.map(({key,chapter})=>({chapterId:key,title:chapter.title})),undefined,5);
     await this.store.lock(()=>this.save(taskId,{phase:'active',paths:[...new Set(paths)].sort(),cache:{},changes:{},pending:[],drafts:[]}));
-    return {taskId,routes:{items:routes.items,total:routes.total,hasMore:routes.nextCursor!==null},next:'Read relevant chapters and source. Use read_knowledge owners for more routes. Finish the developer task first; batch additions at finish.'};
+    const emptyChapters=this.store.chapters(registry).filter(({chapter})=>!chapter.facts.length).map(({key})=>key);
+    return {taskId,...(emptyChapters.length?{setup:{state:'facts-required',boundariesApproved:true,emptyChapters,next:{action:'review-facts',approvalRequired:true,schema:'cground schema seed-batch'}}}:{}),routes:{items:routes.items,total:routes.total,hasMore:routes.nextCursor!==null},next:'Read relevant chapters and source. Use read_knowledge owners for more routes. Finish the developer task first; batch additions at finish.'};
   }
   async assess(id:string,paths:string[],cursor?:string,limit?:number,refresh=false) {
     paths=[...new Set(z.array(relativePath).parse(paths))].sort();
-    const registry=await this.store.read();const affected=this.store.facts(registry).filter(({fact})=>paths.some(p=>fact.sourceScope.some(s=>overlaps(p,s))));
+    const registry=await this.store.read();const impact=await changedFacts(this.store,registry,paths);const affected=impact.changed.map(item=>item.entry);
     const byChapter=new Map<string,string[]>();
     for(const entry of affected){const ids=byChapter.get(entry.chapterId)??[];ids.push(entry.fact.id);byChapter.set(entry.chapterId,ids);}
     const keys=[...new Set([...byChapter].flatMap(([key,ids])=>this.store.related(registry,key,ids)))].sort();
-    const files=await this.store.reviewFiles(registry,keys,paths);
+    const files=keys.length?await this.store.reviewFiles(registry,keys,paths):{sourceFiles:[],documentFiles:await reviewDocuments(this.store,paths,'focused')};
     const entries=[...keys.map(chapterId=>({kind:'chapter',chapterId,revision:this.store.chapter(registry,chapterId).revision})),
       ...files.sourceFiles.map(path=>({kind:'source',path})),...files.documentFiles.map(path=>({kind:'document',path}))];
     await this.store.lock(async()=>{const task=await this.task(id);if(task.phase!=='active')throw new Error('Task is finished; start a new task for more code work.');task.paths=paths;await this.save(id,task);});
@@ -84,8 +87,8 @@ export class Workflow {
     return this.reuse(id,{assess:paths,cursor,limit},value,context,refresh);
   }
   async prepare(input:unknown) {
-    const patch=Patch.parse(input), task=await this.task(patch.taskId);
-    if(task.phase!=='active')throw new Error('Task is finished; start a new task before maintenance.');
+    const patch=Patch.parse(input), task=patch.taskId?await this.task(patch.taskId):undefined;
+    if(task && task.phase!=='active')throw new Error('Task is finished; start a new task before maintenance.');
     const registry=await this.store.read();
     const reviews=patch.reviews.map(({reviewedAllFacts,replacements,removeFactIds,...review})=>{
       const old=this.store.chapter(registry,review.chapterId);
@@ -97,7 +100,7 @@ export class Workflow {
     });
     const {taskId,...rest}=patch;
     const result=await this.store.prepare({...rest,reviews});
-    if(!result.noop)await this.store.lock(async()=>{
+    if(!result.noop && taskId)await this.store.lock(async()=>{
       const current=await this.task(taskId);
       if(current.phase!=='active')throw new Error('Task finished during preparation; prepare in a new task.');
       const file=`local/${result.proposalId}.json`;

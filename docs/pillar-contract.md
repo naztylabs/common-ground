@@ -4,11 +4,11 @@ A pillar owns a stable repository responsibility. A chapter owns a coherent suba
 
 Chapter definitions include a title, scope, exclusions, literal repository-relative file/directory paths defining an authoring boundary. Facts carry their own `sourceScope`, evidence, and `dependsOn` references in `pillar/chapter/fact` form. Scopes must not overlap; fact dependencies must reference an existing fact and cannot refer to themselves. Fact dependencies may cross chapters and pillars. Cycles terminate safely during traversal. New pillars and chapters require developer approval; new pillars also require an uncovered standalone responsibility.
 
-Facts have no count ceiling. A fact statement is limited to 2,000 characters and requires exact source evidence within its own source scope and its chapter's authoring boundary. Matching quotes and hashes establish evidence presence and freshness, not semantic truth.
+Facts have no count ceiling. A fact statement is limited to 2,000 characters and requires exact source evidence. Its source scope stays within its chapter's authoring boundary, but supporting evidence may cite other repository files. Every evidence file is tracked for freshness independently of ownership and source scope; evidence does not confer ownership. Trailing directory slashes normalize away; traversal, absolute paths and symlinks remain rejected. Matching quotes and hashes establish evidence presence and freshness, not semantic truth.
 
 ## Navigate without loading the whole knowledge base
 
-In the default profile, start once with `task_context`, then use `read_knowledge` to retrieve bounded indexes, chapters and full evidence batches. Its kinds map to the detailed operations below. To use these original MCP tool names, select `--profile full`; CLI commands remain unchanged.
+For everyday reads use stateless `cground lookup`; default freshness is not checked, and `--verify` checks selected facts and dependencies. Use `cground assess --touched` after changes, then `--review` only when correction needs complete chapters and verification paths. Task contexts are optional for deferred additions and aggregate reporting. Use `read_knowledge` to retrieve bounded indexes, chapters and full evidence batches. Its kinds map to the detailed operations below. To use these original MCP tool names, select `--profile full`; CLI commands remain unchanged.
 
 Start with the full-profile `start_here` or `.common-ground/START_HERE.md`. `ownership_map` routes registered paths and keyword signals to candidate pillars/chapters. Paths have literal ownership semantics; signal text matches boundary, fact, and evidence tokens and is only a hint. `pillar_graph` groups cross-pillar fact dependencies into directed edges, with example fact references and freshness. It does not infer missing dependencies. All these indexes are paginated.
 
@@ -21,7 +21,7 @@ These response limits do not limit stored facts or chapter counts. Source finger
 
 ## Compact patches and task-time admission
 
-`prepare_patch` accepts `taskId`, `chapterId`, optional initiating `factIds`, `touchedPaths`, `verification`, optional `tidyId`, and complete chapter review declarations. Each review carries `chapterId`, `expectedRevision`, `reviewedAllFacts: true`, `reason`, optional `maintenance`, `replacements` containing only changed existing full fact records, and `removeFactIds`. The server reconstructs unchanged facts and the complete reviewed ID set before invoking the validator described below. A stale revision, unknown/duplicate edit ID, missing chapter, or incomplete source/documentation declaration rejects the request. Whole-chapter reading remains mandatory.
+`prepare_patch` accepts optional `taskId`, `chapterId`, optional initiating `factIds`, `touchedPaths`, `verification`, optional `tidyId`, and complete chapter review declarations. Each review carries `chapterId`, `expectedRevision`, `reviewedAllFacts: true`, `reason`, optional `maintenance`, `replacements` containing only changed existing full fact records, and `removeFactIds`. Without taskId, preparation creates only the review proposal and requires no task start/finish; corrections are reported directly. With taskId, task completion aggregates committed corrections. The server reconstructs unchanged facts and the complete reviewed ID set before invoking the validator described below. A stale revision, unknown/duplicate edit ID, missing chapter, or incomplete source/documentation declaration rejects the request. Whole-chapter reading remains mandatory.
 
 Use `propose_facts` for new records during a task; these are local drafts excluded from retrieval. After `task_context finish` and explicit developer approval, `cground accept-facts TASK_ID REVIEW.json --approve` validates a batch. REVIEW.json has `reviews: [{chapterId, expectedRevision, reviewedAllFacts: true}]` and `verification: {sourceFiles, documentFiles}`. Read `read_knowledge` kinds `proposals` and `proposal-review` for the complete drafts and required files/chapters. Admission reviews whole owning chapters and linked chapters and rejects changed draft evidence/dependencies/chapters. Correct stale existing facts before staging additions. Discard rejected entries with `cground drop-facts TASK_ID FACT_KEY...`; an altered draft requires fresh review and approval. See [the quiet workflow](quiet-workflow.md).
 
@@ -63,7 +63,7 @@ The checklist also accepts no chapter IDs plus touched paths, so README review c
 
 `cground validate [TARGET]` defaults to `all` and accepts the same pillar, chapter and fact selectors as tidy. It checks schema and reference integrity globally, then checks exact evidence, source scope hashes and upstream dependency freshness for the selected facts. Fact validation does not expand to unrelated sibling facts or reverse dependents. Matching local review receipts can acknowledge unchanged assertions after source drift, but evidence quotes must still exist. By default no shared records or review receipts are written; CLI and MCP checks refresh the ignored Markdown export. Stale results list affected pillars, chapters and facts. Accepting cleanup with --cleanup y (CLI) or cleanup:true (MCP) creates a scoped local tidyId, and the calling agent must then perform the complete source review and submit corrections.
 
-The global summary and exit status cover the whole selection even when result rows are paginated. Invalid evidence, unresolved drift, unpopulated chapters and an empty registry yield exit 1. A successful result establishes mechanical consistency, not semantic truth; code and documentation review remain necessary. Cursors reject changes to the registry or validation results.
+CLI and MCP operation results show failing rows by default; use `--all-results` or `allResults:true` for passing rows too. The global summary and exit status cover the whole selection even when result rows are paginated. Invalid evidence, unresolved drift, unpopulated chapters and an empty registry yield exit 1. A successful result establishes mechanical consistency, not semantic truth; code and documentation review remain necessary. Cursors reject changes to the registry or validation results.
 
 ## Developer-requested cleanup
 
@@ -73,9 +73,19 @@ The agent performs the work, then submits a complete verified transaction with t
 
 ## Developer-directed operations
 
-Agents author the records and can execute approved CLI operations. `approve`, `approve-chapters`, `seed`, `admit`, `accept-facts`, and `migrate` require explicit developer direction and are also exposed as cground MCP operations with approved:true. An approval flag is a workflow convention, not an identity boundary against a process with filesystem access.
+Agents author the records and can execute approved CLI operations. `approve`, `approve-chapters`, `seed`, `admit`, `accept-facts`, `bootstrap`, `seed-batch`, and `migrate` require explicit developer direction and are also exposed as cground MCP operations with approved:true. An approval flag is a workflow convention, not an identity boundary against a process with filesystem access.
 
 `admit` validates the full resulting chapter and all its evidence. Dependent chapters detect changed dependency fact fingerprints; use `review_plan` afterward. Fact dependency changes caused by authorized work can be included in a reviewed transaction; the required reviews cover both the old and new dependency graphs. Moving chapter ownership or moving existing facts between chapters does not yet have a dedicated operator command.
+
+## Bootstrap preflight
+
+`cground schema bootstrap` and `cground bootstrap --help --example` expose the combined initial payload: `pillars` plus `batches: [{chapterId, facts}]`. Use `--dry-run` without approval for structural, quote, dependency and source checks. It performs no filesystem writes and returns a content-bound preflight token and tracked file counts per chapter. After explicit approval of both boundaries and facts, apply with `--approve --preflight TOKEN`. The registry must still be absent, and every proposed chapter must have a nonempty fact batch. Use boundary-only approve when facts are not ready. The whole batch is published in one atomic replacement under the writer lock, with source and registry rechecks. This is an optimistic filesystem check, not an OS snapshot or proof of semantic verification.
+
+For approved empty chapters, `seed-batch` accepts only `batches` and uses the same preflight/apply protocol. Cross-batch dependencies are validated against the full candidate. Nonempty chapters reject seeding. Failed preflights or conflicting publication leave shared knowledge unchanged. Receipts identify approved content; approval flags remain declarations, not identity checks. Existing boundary-only approval and single-chapter seed/admit commands remain supported.
+
+Source scope expansion still rejects scans exceeding 10,000 entries. Source hashing streams regular files without the quotation size cap; evidence extraction retains its 2,000,000-byte limit. Supporting evidence outside ownership participates in validation, task assessment, dependency freshness and review checklists.
+
+CLI JSON payloads support `--stdin` or `-`. `cground schema OPERATION` returns the MCP argument schema and identifies the CLI payload shape (seed/admit/propose-facts take a facts array). Mutation operations approve/approve-chapters/seed/admit return counts, changed IDs, validation scope and output path; `--verbose` or MCP `verbose:true` returns the original full object.
 
 ## Schema v1 migration
 

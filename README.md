@@ -11,7 +11,7 @@ No model API key, telemetry, cloud service, or vector database is required. Code
 Requires Node.js 22+ and npm. Download the `.tgz` package from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install it:
 
 ```sh
-npm install -g ./common-ground-knowledge-0.4.1-beta.0.tgz
+npm install -g ./common-ground-knowledge-0.5.0-beta.0.tgz
 cd your-project
 cground init
 ```
@@ -19,6 +19,16 @@ cground init
 The beta is distributed through GitHub Releases, not npmjs.com. Choose the `.tgz` asset, not GitHub's source archive. npm still needs registry access to install runtime dependencies.
 
 `init` creates repository guidance, MCP configuration, an advisory Git hook, and a local Markdown reference. Ask your agent to review the proposed responsibility map and facts with you. After approval, it populates `.common-ground/knowledge.json`. Initialization alone does not invent or approve facts.
+
+For a complete initial transaction, your agent can prepare a JSON payload with `pillars` and `batches: [{chapterId, facts}]`, then run:
+
+```sh
+cground bootstrap setup.json --dry-run
+# After you approve the boundaries and verified facts:
+cground bootstrap setup.json --approve --preflight TOKEN
+```
+
+The dry run validates the whole map and all fact batches without creating a registry, reports source-file counts, and returns `TOKEN`. Changes to the payload, source or registry reject publication. `seed-batch` provides the same preflight/apply workflow for already approved empty chapters. JSON commands accept `--stdin` instead of their filename (or `-` as the filename). Boundary-only `approve` and single-chapter `seed` remain available; approving boundaries does not approve facts.
 
 Then try:
 
@@ -33,6 +43,21 @@ cground doctor               # Check repository setup
 
 In an MCP-capable agent, you can say: “Check the facts in the CI/CD pillar and freshen them if needed.” The agent finds the pillar, checks its facts, reads source, and submits verified corrections. Common Ground does not run a model internally.
 
+## Everyday lookup and maintenance
+
+```sh
+cground lookup --path src/runtime.ts       # A few stored facts and source locations
+cground lookup "runtime mode" --verify     # Also check selected facts and dependencies
+cground assess --touched src/runtime.ts    # Assess only this task's changed paths
+cground assess --touched src/runtime.ts --review  # Complete package if a correction is needed
+```
+
+Lookup and assessment create no task state and require no start/finish sequence. Lookup defaults to at most five facts and explicitly reports freshness as `not-checked`; open source before relying on a claim. `--verify` checks selected facts and upstream sources, not entire unrelated chapters or semantic truth.
+
+Assessment returns `no-fact-review` for unrelated or fingerprint-identical source, with focused local/ancestor documentation paths. Changed source returns `source-review-required`: verify the affected claims before deciding whether knowledge needs revision. `--review` expands the relevant chapters into a bounded package containing all facts, evidence, revisions and source/documentation paths. Follow every page before revising knowledge. Path matching cannot detect every semantic connection.
+
+`prepare-patch` accepts a standalone correction without `taskId`; whole-chapter review and source/revision conflict checks remain enforced. Task contexts remain available for aggregate reporting and deferred additions. Start one when additions need `propose_facts`, finish after the developer task, and obtain approval before admission.
+
 ## Help wherever you need it
 
 ```sh
@@ -41,12 +66,14 @@ cground check --help
 cground help tidy
 cground hook --help
 cground task assess -h
+cground schema seed            # Exact input schema and facts-array payload
+cground bootstrap --help --example
 cground --version
 ```
 
 Every command supports `--help` and `-h`, with its arguments, options, and an example. Help never executes the command or requires an initialized repository. Options accept both `--root PATH` and `--root=PATH`. Unknown flags, unsupported options, and missing or extra arguments fail with a usage hint.
 
-Use `--root PATH` to select another repository. In terminals, checks return a concise summary. Pipes preserve structured JSON; `--json` requests it explicitly and disables interactive prompts. `init` keeps its short agent handoff and Markdown link; `review` prints readable text by default. Use `--json` for structured output from either command. Diagnostics go to stderr, and MCP stdout stays reserved for the protocol.
+Use `--root PATH` to select another repository. In terminals, checks return a concise summary. Validation returns failing rows by default; `--all-results` includes passing rows, with a global summary in either mode. `approve`, `approve-chapters`, `seed` and `admit` return compact receipts; `--verbose` returns full objects. Pipes preserve structured JSON; `--json` requests it explicitly and disables interactive prompts. `init` keeps its short agent handoff and Markdown link; `review` prints readable text by default. Use `--json` for structured output from either command. Diagnostics go to stderr, and MCP stdout stays reserved for the protocol.
 
 Exit codes are `0` for success and `1` for a failed command or knowledge needing attention. Pre-commit hook checks remain advisory and never block a commit.
 
@@ -110,7 +137,7 @@ The default profile has six tools:
 
 | Tool | Purpose |
 | --- | --- |
-| `task_context` | Start once, assess touched paths, finish with meaningful changes and pending approvals |
+| `task_context` | Optional aggregate reporting and deferred fact additions |
 | `read_knowledge` | Navigate indexes, facts, evidence, dependencies, and review checklists |
 | `prepare_patch` | Prepare changes after complete chapter and source review |
 | `commit_update` | Apply a prepared correction to the Git working tree |
@@ -141,7 +168,7 @@ npm ci
 npm test
 npm run demo                # Synthetic repository only
 npm run release:pack        # Tested archive + checksum in release/
-npm install -g ./release/common-ground-knowledge-0.4.1-beta.0.tgz
+npm install -g ./release/common-ground-knowledge-0.5.0-beta.0.tgz
 ```
 
 After upgrading, run `cground init` to refresh guidance, then restart the MCP server. Existing schema-v2 records are preserved. For a schema-v1 pillar-only registry, first review and run `cground migrate --approve`. Read the [release guide](docs/releases.md) for publishing and migration details.

@@ -1,14 +1,14 @@
 import { same, type Store } from './store.js';
-import { relativePath } from './model.js';
+import { relativePath, type RegistryRecord } from './model.js';
 import { page } from './paging.js';
 
 const words = (text: string) => [...new Set(text.toLocaleLowerCase().split(/[^\p{L}\p{N}_]+/u).filter(Boolean))];
 const contains = (scope: string, file: string) => scope === file || file.startsWith(`${scope}/`);
 export interface RouteOptions { path?: string; signal?: string; cursor?: string; limit?: number }
 
-export async function ownershipMap(store: Store, options: RouteOptions = {}) {
-  if (options.path) relativePath.parse(options.path);
-  const registry = await store.read();
+export async function ownershipMap(store: Store, options: RouteOptions = {}, suppliedRegistry?:RegistryRecord, cache?:Map<string,Promise<string>>) {
+  if (options.path) options={...options,path:relativePath.parse(options.path)};
+  const registry = suppliedRegistry??await store.read();
   const terms = words(options.signal ?? '').filter(t => !['a','an','the','is','my','this','what','do','failed','failing'].includes(t));
   const entries = store.chapters(registry).map(({key, pillar, chapter}) => {
     const paths = options.path ? chapter.paths.filter(p => contains(p, options.path!)) : chapter.paths;
@@ -29,7 +29,7 @@ export async function ownershipMap(store: Store, options: RouteOptions = {}) {
   const result = page(entries, options.cursor, options.limit, JSON.stringify(options.path ?? '') + (options.signal ?? ''));
   return {basis: 'Registered chapter paths define ownership. Signal matches are keyword hints from boundaries, facts, and evidence; verify source before diagnosing.',
     ambiguous: entries.length > 1, ...result,
-    items: await Promise.all(result.items.map(async item => ({...item, freshness: await store.status(item.chapterId, registry)})))};
+    items: await Promise.all(result.items.map(async item => ({...item, freshness: await store.status(item.chapterId, registry,cache)})))};
 }
 
 export async function pillarGraph(store: Store, pillarId?: string, cursor?: string, limit?: number) {
@@ -67,14 +67,7 @@ export async function startHere(store: Store, options: RouteOptions = {}) {
   }
   return {guide: '.common-ground/START_HERE.md',
     principle: 'Code is the source of truth. Common Ground is a cache that supplements source reading.',
-    steps: [
-      'Read the modified directory README and applicable ancestor guidance. Derive branch, submodule checkout, and other point-in-time state live.',
-      'Use the failing command or error path to select ownership; signal matches are navigation hints, not a diagnosis.',
-      'List the owning pillar chapters, read the relevant chapter pages, then fetch facts and open their source files in this session.',
-      'Inspect pillar_graph and fact dependencies when build or deployment crosses subsystem boundaries.',
-      'Before changing notes, request review_plan and review_checklist. Verify all facts in each required chapter and relevant sibling, child, and referenced documentation.',
-      'Correct contradictions in the same edit. If no fact changes, still verify the modified directory README. Ask when uncertain; do not cache the debugging narrative.',
-    ], routes,
+    policy:'.common-ground/POLICY.md', routes,
     next: routes.total === 0 ? 'No recorded owner matched. Inspect directory READMEs and code; ask the developer about ownership. Do not invent a pillar or diagnosis.'
       : routes.ambiguous ? 'Multiple candidates matched. Narrow with a repository-relative path and read their scopes before choosing.'
         : 'Call list_chapters for the matched pillar, then read_chapter and read_fact; verify their source.'};
@@ -103,7 +96,7 @@ export async function tidyPlan(store: Store, target: string, cursor?: string, li
 
 
 /** Read-only mechanical validation. Evidence presence never proves semantic truth. */
-export async function validateKnowledge(store: Store, target = 'all', cursor?: string, limit?: number) {
+export async function validateKnowledge(store: Store, target = 'all', cursor?: string, limit?: number, allResults=true) {
   const registry = await store.read(); // Schema, ownership and dependency references are checked globally.
   const chapters = store.resolveTarget(registry, target);
   const allFacts = store.facts(registry), index = new Map(allFacts.map(f => [f.key, f]));
@@ -121,7 +114,7 @@ export async function validateKnowledge(store: Store, target = 'all', cursor?: s
     let changedPaths: string[] = [];
     try {
       const current = await store.snapshot({paths:chapter.paths,facts:[fact]});
-      const baseline = Object.fromEntries(Object.entries(chapter.sources).filter(([file]) => fact.sourceScope.some(scope => contains(scope,file))));
+      const baseline = Object.fromEntries(Object.entries(chapter.sources).filter(([file]) => fact.sourceScope.some(scope => contains(scope,file)) || fact.evidence.some(e=>e.path===file)));
       changedPaths = [...new Set([...Object.keys(current),...Object.keys(baseline)])].filter(file => current[file] !== baseline[file]).sort();
     } catch (e: any) { if (!errors.includes(e.message)) errors.push(e.message); }
     checked.set(key,{changedPaths,errors});
@@ -154,5 +147,5 @@ export async function validateKnowledge(store: Store, target = 'all', cursor?: s
     affected,
     cleanupPrompt:needsReview ? "Start automatic cleanup?" : null,
     summary:{selectedFacts:items.length,checkedFacts:required.length,needsReview,unpopulatedChapters},
-    ...page(items,cursor,limit,JSON.stringify({target,registry}),12000)};
+    ...page(allResults?items:stale,cursor,limit,JSON.stringify({target,registry,allResults}),12000)};
 }

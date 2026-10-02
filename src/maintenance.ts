@@ -2,9 +2,9 @@ import { Store, same } from './store.js';
 import { validateKnowledge, tidyPlan } from './navigation.js';
 import { refreshKnowledgeExport } from './export.js';
 
-export async function checkKnowledge(store:Store,target='all',cleanup=false,cursor?:string,limit?:number,expectedAffected?:unknown) {
+export async function checkKnowledge(store:Store,target='all',cleanup=false,cursor?:string,limit?:number,expectedAffected?:unknown,allResults=true) {
   const registry=await store.read();
-  const result=await validateKnowledge(store,target,cursor,limit);
+  const result=await validateKnowledge(store,target,cursor,limit,allResults);
   if(expectedAffected && !same(expectedAffected,result.affected))throw new Error('Affected knowledge changed; rerun the check and confirm the new cleanup scope.');
   if(!same(registry,await store.read()))throw new Error('Knowledge changed; rerun the check.');
   const cleanupPlan=cleanup && result.affected.chapters.length

@@ -7,11 +7,11 @@ import type { Store } from './store.js';
 
 const ENTRY_LIMIT=1500, FILE_BYTES=256*1024, TOTAL_BYTES=2*1024*1024, PROJECT_LIMIT=50;
 const excluded=new Set(['.git','node_modules','.common-ground','dist','build','target','.nx','.vite','.next','.nuxt','.svelte-kit','.angular','.turbo','.yarn','.pnpm-store','.output','coverage',
-  'vendor','.venv','venv','__pycache__','Pods','Carthage','.build','DerivedData','.gradle','.dart_tool','.pub-cache','bin','obj']);
+  'vendor','third_party','third-party','thirdparty','external','extern','deps','dependencies','.venv','venv','__pycache__','Pods','Carthage','.build','DerivedData','.gradle','.dart_tool','.pub-cache','bin','obj']);
 const inside=(file:string,root:string)=>root==='.'||file===root||file.startsWith(`${root}/`);
 const object=(value:unknown):value is Record<string,any>=>!!value&&typeof value==='object'&&!Array.isArray(value);
-const markers=/^(package\.json|angular\.json|project\.json|nx\.json|turbo\.json|lerna\.json|pnpm-workspace\.ya?ml|Package\.swift|project\.pbxproj|pom\.xml|(?:build|settings)\.gradle(?:\.kts)?|AndroidManifest\.xml|go\.(?:mod|work)|pyproject\.toml|requirements(?:[-.][\w-]+)?\.txt|Pipfile|setup\.py|Cargo\.toml|Gemfile|composer\.json|pubspec\.yaml|app\.json|app\.config\.json|.*\.(?:csproj|fsproj|vbproj|sln|slnx))$/;
-const source=/\.(?:[cm]?[jt]sx?|vue|svelte|astro|java|kt|swift|[mh]|py|go|rs|cs|fs|vb|rb|php|dart|xml|json|toml|ya?ml|gradle|kts)$/;
+const markers=/^(CMakeLists\.txt|Makefile|meson\.build|package\.json|angular\.json|project\.json|nx\.json|turbo\.json|lerna\.json|pnpm-workspace\.ya?ml|Package\.swift|project\.pbxproj|pom\.xml|(?:build|settings)\.gradle(?:\.kts)?|AndroidManifest\.xml|go\.(?:mod|work)|pyproject\.toml|requirements(?:[-.][\w-]+)?\.txt|Pipfile|setup\.py|Cargo\.toml|Gemfile|composer\.json|pubspec\.yaml|app\.json|app\.config\.json|.*\.(?:csproj|fsproj|vbproj|sln|slnx))$/;
+const source=/\.(?:[cm]?[jt]sx?|vue|svelte|astro|java|kt|swift|c|cc|cpp|cxx|h|hh|hpp|hxx|m|py|go|rs|cs|fs|vb|rb|php|dart|xml|json|toml|ya?ml|gradle|kts)$/;
 const ci=(file:string)=>/^(?:.*\/)?(?:azure-pipelines[^/]*\.ya?ml|\.gitlab-ci\.ya?ml|Jenkinsfile)$/.test(file)||/(?:^|\/)(?:\.github\/workflows|\.circleci)\/[^/]+\.ya?ml$/.test(file)||/(?:^|\/)pipelines\/.*\.ya?ml$/.test(file);
 type Project={root:string; technologies:Set<string>; evidence:Set<string>; library:boolean};
 type Detection={root:string;technologies:string[];evidence:string[];evidenceCount:number;chapterId:string;pathHintCount:number;pathsTruncated:boolean};
@@ -22,6 +22,7 @@ const roles:Record<string,[string,string]>={
   'web-applications':['Web Applications','Web application structure, routing and runtime contracts.'],
   'mobile-applications':['Mobile Applications','Mobile application structure and cross-platform runtime contracts.'],
   'native-applications':['Native Applications and Packages','Native application and package structure and public contracts.'],
+  'cpp-projects':['C / C++ Projects','C and C++ application and library structure, build and runtime contracts.'],
   'jvm-applications':['JVM Applications','Java and Kotlin project structure, build and runtime contracts.'],
   'javascript-projects':['JavaScript / TypeScript Projects','JavaScript and TypeScript project structure and runtime contracts.'],
   'python-projects':['Python Projects','Python application and package structure and runtime contracts.'],
@@ -46,7 +47,10 @@ async function scanFiles(store:Store){
       const file=path.posix.join(directory,entry.name);
       if(entry.isDirectory())children.push(file);else if(entry.isFile())files.push(file);
     }
-    queue.push(...children.sort());
+    queue.push(...children.sort((a,b)=>{
+      const priority=(p:string)=>/^(src|include|apps|packages|libs|services)(\/|$)/.test(p)?0:1;
+      return priority(a)-priority(b)||a.localeCompare(b);
+    }));
   }
   return {files:files.sort(),inspectedEntries,truncated};
 }
@@ -78,6 +82,8 @@ export async function discover(store:Store){
   for(const file of manifestFiles){
     const name=path.posix.basename(file),root=path.posix.dirname(file),text=await read(file);
     // Filename signals remain useful even when content is too large or malformed.
+    if(name==='CMakeLists.txt')add(root,'CMake',file);
+    if(name==='meson.build')add(root,'Meson',file);
     if(name==='Package.swift')add(root,'Swift Package Manager',file);
     if(name==='project.pbxproj')add(path.posix.dirname(root),'Xcode',file);
     if(name==='pom.xml')add(root,'Maven',file);
@@ -135,7 +141,7 @@ export async function discover(store:Store){
   }
   const nearest=(file:string)=>[...projects.values()].filter(p=>inside(file,p.root)).sort((a,b)=>b.root.length-a.root.length)[0];
   const conventional=(file:string)=>file.match(/^(?:apps|packages|libs|services|projects)\/[^/]+/)?.[0]??'.';
-  const language:Record<string,string>={'.java':'Java','.kt':'Kotlin','.swift':'Swift','.py':'Python','.go':'Go','.rs':'Rust','.cs':'.NET','.fs':'.NET','.rb':'Ruby','.php':'PHP','.dart':'Dart','.vue':'Vue','.svelte':'Svelte','.astro':'Astro',
+  const language:Record<string,string>={'.c':'C','.cc':'C++','.cpp':'C++','.cxx':'C++','.hpp':'C++','.hxx':'C++','.java':'Java','.kt':'Kotlin','.swift':'Swift','.py':'Python','.go':'Go','.rs':'Rust','.cs':'.NET','.fs':'.NET','.rb':'Ruby','.php':'PHP','.dart':'Dart','.vue':'Vue','.svelte':'Svelte','.astro':'Astro',
     '.js':'JavaScript','.jsx':'JavaScript','.mjs':'JavaScript','.cjs':'JavaScript','.ts':'TypeScript','.tsx':'TypeScript','.mts':'TypeScript','.cts':'TypeScript'};
   for(const file of scan.files){
     const technology=language[path.posix.extname(file)];if(!technology)continue;
@@ -172,6 +178,7 @@ export async function discover(store:Store){
     if(has('Android'))return 'mobile-applications';
     if(has('Swift','Swift Package Manager','Xcode'))return 'native-applications';
     if(has('Java','Kotlin','Maven','Gradle','Spring Boot'))return 'jvm-applications';
+    if(has('C','C++','CMake','Meson'))return 'cpp-projects';
     for(const [tech,key] of [['Python','python'],['Go','go'],['.NET','dotnet'],['Rust','rust'],['Ruby','ruby'],['PHP','php'],['Dart','dart']])if(has(tech))return `${key}-projects`;
     if(workspace)return 'workspace-tooling';
     return 'javascript-projects';

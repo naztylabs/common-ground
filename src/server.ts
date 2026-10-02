@@ -41,7 +41,7 @@ export function createServer(store:Store,profile='compact') {
   if(profile!=='compact')throw new Error('Unknown MCP profile; use compact or full.');
   const server=new McpServer({name:'common-ground',version}), workflow=new Workflow(store);
   const register=(name:string,description:string,inputSchema:any,readOnly:boolean,fn:(args:any)=>Promise<unknown>)=>server.registerTool(name,{description,inputSchema,annotations:{readOnlyHint:readOnly,destructiveHint:name==='commit_update',openWorldHint:false}},async(args:any)=>{try{return result(await fn(args));}catch(e:any){return {...result({error:e.message}),isError:true};}});
-  register('task_context','Start once per coding task; assess touched paths after edits; finish once for a quiet summary and pending approvals. Without a taskId, follow returned setup guidance and continue from source. Local state only.',{
+  register('task_context','Optional context for deferred additions and aggregate reporting. For routine work use cground lookup and assess without a task. If started, assess touched paths and finish once. Without a taskId, follow returned setup guidance and continue from source. Local state only.',{
     action:z.enum(['start','assess','finish']),taskId:z.string().uuid().optional(),paths:z.array(relativePath).optional(),signal:z.string().optional(),refresh:z.boolean().optional(),...paging,
   },false,async({action,taskId,paths,signal,cursor,limit,refresh})=>{
     if(action==='start')return workflow.start(paths,signal);
@@ -51,7 +51,7 @@ export function createServer(store:Store,profile='compact') {
     return workflow.assess(taskId,paths,cursor,limit,refresh);
   });
   register('read_knowledge','Read bounded knowledge. target is a pillar/chapter/fact ID. chapter + evidence:true batches full facts; read every page before editing. refresh:true resends cached context.',ReadKnowledge.shape,false,args=>readKnowledge(store,args));
-  register('prepare_patch','Quiet existing-fact maintenance only. Read POLICY.md, all required chapter pages and source first. reviewedAllFacts attests the whole revision. Send only changed records; unchanged records are preserved.',Patch.shape,false,args=>workflow.prepare(args));
+  register('prepare_patch','Quiet existing-fact maintenance only; taskId is optional. Read POLICY.md, all required chapter pages and source first. reviewedAllFacts attests the whole revision. Send only changed records; unchanged records are preserved.',Patch.shape,false,args=>workflow.prepare(args));
   register('commit_update','Write a prepared correction to the Git working tree after rechecking revisions, source and documentation. Report at task completion.',{proposalId:z.string().uuid()},false,({proposalId})=>store.commit(proposalId));
   register('propose_facts','Queue verified new facts locally; no shared write. Batch for developer approval after task_context finish. Dependencies must already be admitted.',{taskId:z.string().uuid(),chapterId:chapterKey,facts:z.array(Fact).min(1)},false,({taskId,chapterId,facts})=>workflow.propose(taskId,chapterId,facts));
   registerOperations(server,store);
@@ -63,7 +63,7 @@ const paging={cursor:z.string().optional(),limit:z.number().int().min(1).max(20)
 export function registerOperations(server:McpServer,store:Store) {
   const catalog=operations(store);
   server.registerTool('cground',{
-    description:'All Common Ground CLI workflows via structured MCP, no shell needed. Call operation:help for a paginated catalog or help with args.operation for its exact input schema. Supports check/validate/tidy, onboarding, approved admission, task workflows, hooks and export. Host approval settings apply. approved:true declares actual developer approval, never grants it. Cleanup verifies existing facts only; the calling agent reads source and submits reviewed corrections.',
+    description:'All Common Ground CLI workflows via structured MCP, no shell needed. Call operation:help for a paginated catalog or help with args.operation for its exact input schema. Use lookup for cheap stateless facts/source locations and assess for task-touched changes; neither requires start/finish. Supports check/validate/tidy, onboarding, approved admission, task workflows, hooks and export. Host approval settings apply. approved:true declares actual developer approval, never grants it. Cleanup verifies existing facts only; the calling agent reads source and submits reviewed corrections.',
     inputSchema:{operation:z.enum(['help',...Object.keys(catalog)] as [string,...string[]]),args:z.record(z.unknown()).default({})},
     annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:false},
   },async({operation,args})=>{

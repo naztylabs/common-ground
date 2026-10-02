@@ -85,7 +85,7 @@ test('validation summary and CLI exit cover failures beyond the current page',as
  const second=await validateKnowledge(store,'all',first.nextCursor,1);assert.notEqual(first.items[0].factId,second.items[0].factId);
  await fs.writeFile(path.join(root,'independent/contract.txt'),'changed');
  await assert.rejects(()=>validateKnowledge(store,'all',first.nextCursor,1),/Content changed/);
- const result=command(root,'validate','all','--limit','1');assert.equal(result.status,1);
+ const result=command(root,'validate','all','--limit','1','--all-results');assert.equal(result.status,1);
  const parsed=JSON.parse(result.stdout);assert.equal(parsed.items[0].status,'evidence-unchanged');assert.equal(parsed.valid,false);assert.equal(parsed.summary.needsReview,1);
 });
 

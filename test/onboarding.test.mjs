@@ -24,8 +24,9 @@ test('fresh CLI onboarding explains approval, creates no task until approved, th
   const {root,store}=await fixture(t);
   const init=cli(root,'init','--json');
   assert.equal(init.state,'bootstrap-required');
-  assert.match(init.next,/Only after approval/);
-  assert.match(init.next,/cground approve .common-ground\/local\/bootstrap.json --approve/);
+  assert.equal(init.next.action,'review-map-and-facts');
+  assert.equal(init.next.approvalRequired,true);
+  assert.equal(init.next.command,'cground bootstrap PLAN.json --dry-run');
   await assert.rejects(()=>fs.access(store.file('knowledge.json')),{code:'ENOENT'});
   const before=await fs.readFile(store.file('local/bootstrap.json'),'utf8');
   const start=cli(root,'task','start');
