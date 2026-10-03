@@ -86,7 +86,7 @@ test('scan prunes bundled dependencies and tool configuration; explicit exclusio
  }
  for(let i=0;i<1505;i++)await write(`dep/vendor-${i}.cpp`,'int synthetic;');
  const scan=await discover(store,['odd-bundle/']);assert.equal(scan.scan.truncated,false);
- const paths=scan.pillars.flatMap(p=>p.chapters.flatMap(c=>c.paths));assert.ok(paths.includes('lib/entry.ts'));assert.ok(paths.includes('libs/first/entry.ts'));
+ const paths=scan.pillars.flatMap(p=>p.chapters.flatMap(c=>c.paths));for(const file of ['lib/entry.ts','libs/first/entry.ts'])assert.ok(paths.some(scope=>file===scope||file.startsWith(`${scope}/`)));
  assert.ok(!paths.some(p=>/^(dep|Deps|ThirdParty|\.vscode|\.idea|\.codex|odd-bundle)\//.test(p)));assert.ok(scan.scan.skippedCount>=7);
  await assert.rejects(discover(store,['../outside']));
 });
@@ -113,11 +113,11 @@ test('lookup distinguishes evidence, source coverage and ownership hints with ex
  const {store,write,fact}=await fixture(t);
  await write('src/other.ts','export const startup = true;');
  await store.admit('runtime/main',[{...fact,id:'startup',statement:'The service starts with startup enabled.',sourceScope:['src/other.ts'],evidence:[{path:'src/other.ts',quote:'startup = true'}]}]);
- const direct=await runOperation(store,'lookup',{path:'src/main.ts',query:'mode deletion'});
+ const direct=await runOperation(store,'lookup',{path:'src/main.ts',query:'mode deletion',verbose:true});
  assert.equal(direct.items[0].matchReason,'direct-evidence');assert.deepEqual(direct.items[0].matchedTerms,['mode']);assert.deepEqual(direct.items[0].unmatchedTerms,['deletion']);assert.equal(direct.items[0].relevance,'partial-query');
  const hint=direct.items.find(i=>i.factId.endsWith('/startup'));assert.equal(hint.matchReason,'ownership-suggestion');assert.equal(hint.relevance,'ownership-only');assert.deepEqual(hint.matchedPaths,['src']);
- const scope=await runOperation(store,'lookup',{path:'src/unrecorded.ts'});assert.equal(scope.items[0].matchReason,'source-scope');assert.equal(scope.items[0].queryCoverage,null);
- const query=await runOperation(store,'lookup',{query:'mode deletion'});assert.equal(query.items[0].matchReason,'query-terms');assert.deepEqual(query.items[0].queryCoverage,{matched:1,total:2});
+ const scope=await runOperation(store,'lookup',{path:'src/unrecorded.ts',verbose:true});assert.equal(scope.items[0].matchReason,'source-scope');assert.equal(scope.items[0].queryCoverage,null);
+ const query=await runOperation(store,'lookup',{query:'mode deletion',verbose:true});assert.equal(query.items[0].matchReason,'query-terms');assert.deepEqual(query.items[0].queryCoverage,{matched:1,total:2});
  const absent=await runOperation(store,'lookup',{query:'deletion'});assert.equal(absent.state,'no-matches');assert.match(absent.next,/Read source/);
 });
 test('guidance refresh reports changes once, then unchanged files and no next action',async t=>{

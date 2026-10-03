@@ -77,10 +77,10 @@ test('existing hooks and custom hook managers are preserved with integration gui
   assert.equal(git(root,'config','--get','core.hooksPath').trim(),'.husky/_');
 });
 
-test('fresh init directs agent-led approval and does not pretend knowledge already exists',async t=>{
+test('fresh init explains content approval or delegated publication without claiming knowledge exists',async t=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'cg-init-output-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
   const output=execFileSync(process.execPath,[cli,'init','--root',root],{encoding:'utf8'});
-  assert.match(output,/agent to summarize the proposed responsibility map/);assert.doesNotMatch(output,/\[.common-ground\/knowledge.json\]/);assert.match(output,/then writes the shared knowledge/);
+  assert.match(output,/agent to summarize the proposed responsibility map/);assert.doesNotMatch(output,/\[.common-ground\/knowledge.json\]/);assert.match(output,/content approval or explicit developer delegation/);
   assert.ok(output.length<800);await assert.rejects(fs.access(path.join(root,'.common-ground/knowledge.json')));
 });
 

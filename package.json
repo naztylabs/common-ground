@@ -1,9 +1,16 @@
 {
-  "name": "common-ground-knowledge",
-  "version": "0.5.0-beta-2",
+  "name": "@nazty_labs/common-ground",
+  "version": "0.5.1",
   "description": "An open-source framework for shared, evidence-backed repository knowledge across coding agents",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/naztylabs/common-ground.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "cground": "dist/cli.js"
   },
@@ -11,6 +18,7 @@
     "dist",
     "schemas",
     "README.md",
+    "SETUP.md",
     "LICENSE",
     "docs"
   ],

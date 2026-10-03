@@ -2,13 +2,14 @@ import { parseArgs } from 'node:util';
 
 // CLI syntax only. Domain validation and execution live in operations.ts for both interfaces.
 export const options = {
+  'skip-hook': { type: 'boolean', label: '--skip-hook', description: 'Finish repository setup without installing the advisory Git hook; install it later with cground hook install' },
   both: { type: 'boolean', label: '--both', description: 'Include both CLI payload and MCP operation schemas' },
   exclude: { type: 'string', label: '--exclude <paths>', description: 'Comma-separated repository-relative paths to exclude from discovery' },
   verify: { type: 'boolean', label: '--verify', description: 'Check selected facts and upstream source freshness' },
   review: { type: 'boolean', label: '--review', description: 'Include complete chapters and source/documentation paths before knowledge correction' },
   stdin: { type: 'boolean', label: '--stdin', description: 'Read the JSON payload from stdin instead of a file' },
   example: { type: 'boolean', label: '--example', description: 'Show a copyable JSON payload with help' },
-  verbose: { type: 'boolean', label: '--verbose', description: 'Return complete mutation objects' },
+  verbose: { type: 'boolean', label: '--verbose', description: 'Include lookup matching diagnostics or complete mutation objects' },
   'all-results': { type: 'boolean', label: '--all-results', description: 'Include passing validation rows' },
   'dry-run': { type: 'boolean', label: '--dry-run', description: 'Preflight without writing knowledge or requiring approval' },
   preflight: { type: 'string', label: '--preflight <token>', description: 'Token from the reviewed dry run; rejects source or payload changes' },
@@ -37,9 +38,10 @@ const paging:Flag[] = ['cursor','limit'];
 const define = (name:string, args:string, description:string, flags:Flag[], example:string, group:Group='Agent workflows'):CommandSpec =>
   ({name,operation:name.replace(' ','-'),arguments:args,description,flags,example,group});
 export const commands:CommandSpec[] = [
-  define('lookup','[query...]','Find a few facts and source locations without task bookkeeping',['path','verify','limit','cursor'],'cground lookup --path src/runtime.ts','Everyday'),
+  define('lookup','[query...]','Find compact facts, coverage and navigation without task bookkeeping',['path','verify','verbose','limit','cursor'],'cground lookup --path src/runtime.ts','Everyday'),
+  define('source-search','<query...>','Search explicit source paths for live evidence, separately from stored facts',['path','limit'],'cground source-search "version 1.4" --path src','Navigation'),
   define('assess','','Check actual task changes; expand review only when needed',['touched','review',...paging],'cground assess --touched src/runtime.ts','Everyday'),
-  define('init','','Set up guidance, MCP, local Markdown and advisory Git hook',[],'cground init','Everyday'),
+  define('init','','Set up guidance, MCP, local Markdown and advisory Git hook',['skip-hook'],'cground init','Everyday'),
   define('check','[target]','Check all knowledge or one pillar, chapter or fact',['cleanup','all-results',...paging],'cground check cicd --cleanup n','Everyday'),
   define('validate','[target]','Alias of check: validate structure, evidence and freshness',['cleanup','all-results',...paging],'cground validate all --json','Everyday'),
   define('tidy','<target>','Plan developer-requested cleanup; agent verifies and applies it',paging,'cground tidy all','Everyday'),
@@ -132,7 +134,7 @@ export function parseCommand(argv:string[]) {
     const maximum=args.some(a=>a.includes('...'))?Infinity:args.length;
     if(words.length<minimum || words.length>maximum)throw new Error(`Usage: cground ${name} ${command.arguments}. Run cground ${name} --help.`);
     if(['assess','task assess'].includes(name) && values.touched===undefined)throw new Error('Supply --touched for actual task paths.');
-    const maxLimit=name==='lookup'?5:20;
+    const maxLimit=['lookup','source-search'].includes(name)?5:20;
     if(values.limit!==undefined && (!/^\d+$/.test(String(values.limit)) || Number(values.limit)<1 || Number(values.limit)>maxLimit))throw usageError('INVALID_OPTION_VALUE',`--limit must be an integer from 1 to ${maxLimit}.`,['--limit'],`Supply --limit with an integer from 1 to ${maxLimit}.`);
     if(values.cleanup!==undefined && !['y','n'].includes(String(values.cleanup).toLowerCase()))throw usageError('INVALID_OPTION_VALUE','Use --cleanup y or --cleanup n.',['--cleanup'],'Choose y or n for --cleanup.');
     if(values.profile!==undefined && !['compact','full'].includes(String(values.profile)))throw usageError('INVALID_OPTION_VALUE','Use --profile compact or --profile full.',['--profile'],'Choose compact or full for --profile.');
@@ -147,7 +149,14 @@ export function helpText(command?:CommandSpec,group?:string) {
     if(selected.length)lines.push(`${category}:`,...selected.map(c=>`  ${(c.name+' '+c.arguments).trim().padEnd(47)} ${c.description}`),'');
   }
   const flags:Flag[] = ['help','root','json',...(command && payloadExamples[command.name]?['example'] as Flag[]:[]),...(command?.flags??(!group?['version'] as Flag[]:[]))];
-  lines.push('Options:',...flags.map(flag=>`  ${options[flag].label.padEnd(32)} ${options[flag].description}`),'');
+  lines.push('Options:',...flags.map(flag=>{
+    const option=flag==='limit'&&command&&['lookup','source-search'].includes(command.name)
+      ?{label:'--limit <1..5>',description:'Maximum returned results (default: 5)'}
+      :flag==='path'&&command?.name==='source-search'
+        ?{label:'--path <paths>',description:'Required files or directories to search, comma-separated and repository-relative'}
+        :options[flag];
+    return `  ${option.label.padEnd(32)} ${option.description}`;
+  }),'');
   if(command){
     lines.push('Example:',`  ${command.example}`,'');
     if(command.name!=='serve')lines.push(`Input schema: cground schema ${command.operation}`);
@@ -156,7 +165,8 @@ export function helpText(command?:CommandSpec,group?:string) {
   }
   else lines.push('Get started: cground init → review the proposed knowledge with your agent → cground check', 'Help: cground <command> --help, cground help <command>, cground hook --help','');
   if(command && ['seed','admit','bootstrap','prepare-patch'].includes(command.name))lines.push('sourceScope stays within the owning chapter paths. Supporting evidence may cross ownership boundaries: for a chapter owning src, use sourceScope:["src"] with evidence:[{path:"shared/config.ts",quote:"mode = 1"}]. External evidence is tracked automatically; do not add shared/config.ts to sourceScope.','');
-  if(command?.name==='lookup')lines.push('Default: up to five stored facts with source paths; freshness is not checked. Use --verify for live checks.','');
+  if(command?.name==='lookup')lines.push('Default: compact stored facts and explicit weak coverage; freshness is not checked. Use --verify for fact freshness and --verbose for matching diagnostics. Source-search suggestions are not executed.','');
+  if(command?.name==='source-search')lines.push('Requires --path FILE_OR_DIRECTORY (or comma-separated scopes). Reads bounded live source; results are separate from stored facts and never write knowledge.','');
   if(command?.name==='assess')lines.push('No task start or finish required. No local/shared writes. Use --review only when a correction needs whole-chapter review.','');
   if(command && ['check','validate','tidy'].includes(command.name))lines.push('Targets: all, pillar, pillar/chapter, pillar/chapter/fact, or a unique fact ID.', 'Cleanup returns a plan and tidyId. Your agent must read source and submit verified corrections.', 'Check/validate exit 1 while stale or unpopulated, even after cleanup is accepted.','');
   if(command?.flags.includes('approve'))lines.push('Approval flags declare developer direction; they do not grant autonomous agent permission.','');

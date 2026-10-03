@@ -205,11 +205,11 @@
             "src/discovery.ts",
             "docs/discovery.md"
           ],
-          "revision": 6,
+          "revision": 7,
           "facts": [
             {
               "id": "bounded-discovery",
-              "statement": "Discovery scans at most 1,500 filesystem entries and accepts at most 2 MiB of manifest content; framework signals produce developer-reviewed candidates without inferring facts.",
+              "statement": "Discovery scans at most 1,500 filesystem entries and accepts at most 2 MiB of manifest content; framework signals produce candidates requiring developer direction without inferring facts.",
               "evidence": [
                 {
                   "path": "src/discovery.ts",
@@ -249,7 +249,7 @@
             },
             {
               "id": "copilot-adapter",
-              "statement": "Initialization manages short root AGENTS.md instructions, a detailed POLICY.md loaded before edits, and a Copilot instruction link.",
+              "statement": "Initialization manages short root AGENTS.md instructions, POLICY.md for existing-knowledge edits, and a Copilot instruction link.",
               "evidence": [
                 {
                   "path": "src/init.ts",
@@ -261,7 +261,7 @@
                 },
                 {
                   "path": "src/guidance.ts",
-                  "quote": "Before editing, read [.common-ground/POLICY.md](.common-ground/POLICY.md)"
+                  "quote": "Before revising existing knowledge, read [POLICY.md](POLICY.md)"
                 }
               ],
               "sourceScope": [
@@ -305,9 +305,9 @@
             }
           ],
           "sources": {
-            "src/discovery.ts": "9456e49499bb633a13c99d45b86162d205806d7f194a4f5504441aa3bf27a6a9",
-            "src/guidance.ts": "f96358972ae5672b2bf5f1288ca1a53ae2de28a06d07a572fc2081ea6ae8291c",
-            "src/init.ts": "81acbc51c0015e09ef90e2406de4bd29eace7a63f2432ded35fe5e7ca44ae004"
+            "src/discovery.ts": "f3c6f3f51dd805e6133bfb940d4b86033eb4d6083b1de92eb9347327c3a07321",
+            "src/guidance.ts": "4dcbea1928ba1e7e392a6cbc49ab5fba8f85edebd0041859d4e9e360ed94980c",
+            "src/init.ts": "b42f09b6decb4969c26fb912b53d6e72ab8573cc7b1516bca82d10d63986ea59"
           },
           "dependencyFingerprints": {}
         }

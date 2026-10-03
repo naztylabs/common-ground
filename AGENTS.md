@@ -21,5 +21,5 @@ If corrections are needed, request assess --review. Before editing, read [.commo
 
 Task contexts are optional for aggregated reporting and deferred additions. Start one when needed; propose_facts queues drafts, finish after the main task, then ask "Ready to make the following facts available to the team?" New facts, chapters, pillars and ownership expansion need developer direction. If started, finish the task once; reuse cached responses only within it and refresh:true after context loss.
 
-Default to no write. Keep durable patterns, not debugging history; library-local detail belongs in its README. Resolve disputed behavior with the developer. No change means no Common Ground report. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
+Default to no write. Keep durable patterns, not debugging history; library-local detail belongs in its README. Resolve disputed behavior with the developer. No change means no Common Ground report. Setup: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
 <!-- common-ground:end -->

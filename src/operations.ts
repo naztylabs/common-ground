@@ -12,12 +12,13 @@ import { startHere, ownershipMap, pillarGraph } from './navigation.js';
 import { checkKnowledge, startTidy } from './maintenance.js';
 import { refreshKnowledgeExport } from './export.js';
 import { version } from './version.js';
+import { SourceSearch, sourceSearch } from './source-search.js';
 
 const paging={cursor:z.string().optional(),limit:z.number().int().min(1).max(20).optional()};
 const target={target:z.string().min(1)};
 const task={taskId:z.string().uuid()};
 const approval={approved:z.literal(true).describe('Declaration of explicit developer approval of this exact operation and content; never infer approval from this flag.')};
-const batch={batches:z.array(z.object({chapterId:chapterKey,facts:z.array(Fact).min(1)}).strict()).min(1),dryRun:z.boolean().default(false),approved:z.literal(true).optional(),preflight:z.string().optional()};
+const batch={batches:z.array(z.object({chapterId:chapterKey,facts:z.array(Fact).min(1)}).strict()).min(1),dryRun:z.boolean().default(false),approved:z.literal(true).describe('Declaration of developer direction covering the initial boundaries and facts, through content approval or explicit delegation to publish within scope. Not proof of human review.').optional(),preflight:z.string().optional()};
 const routing={path:relativePath.optional(),signal:z.string().optional(),...paging};
 type Operation={description:string;schema:z.AnyZodObject;run:(args:any)=>Promise<unknown>};
 export function operations(store:Store):Record<string,Operation> {
@@ -32,7 +33,8 @@ export function operations(store:Store):Record<string,Operation> {
   const verbose={verbose:z.boolean().default(false)};
   const check=op('Check all or selected knowledge for structure, exact evidence and freshness. Stale results list affected IDs and offer cleanup. cleanup:true requires developer-requested cleanup; it creates a scoped tidyId for the calling agent to verify and submit corrections.',{target:z.string().default('all'),cleanup:z.boolean().default(false),allResults:z.boolean().default(false),...paging},a=>checkKnowledge(store,a.target,a.cleanup,a.cursor,a.limit,undefined,a.allResults));
   return {
-    lookup:op('Find up to five relevant facts and source paths without task state or source hashing. verify:true checks selected facts and dependencies; default freshness is not-checked.',Lookup.shape,a=>lookup(store,a)),
+    lookup:op('Find compact facts, explicit coverage and navigation without scanning source. verify:true checks fact freshness; verbose:true adds matching diagnostics. Weak matches suggest a separate source-search operation.',Lookup.shape,a=>lookup(store,a)),
+    'source-search':op('Search explicitly selected files/directories for live source evidence, separate from stored facts. Bounded read-only search; no knowledge or task writes.',SourceSearch.shape,a=>sourceSearch(store,a)),
     assess:op('Read-only assessment of actual task-touched paths. No task needed. Compare candidate source changes; review:true supplies complete chapters and verification paths before corrections.',Assess.shape,a=>assessChanges(store,a)),
     schema:op('Inspect an operation input schema and CLI payload guidance.',{operation:z.string(),both:z.boolean().default(false)},async a=>{
       const entry=operations(store)[a.operation];if(!entry)throw new Error('Unknown operation.');
@@ -43,7 +45,7 @@ export function operations(store:Store):Record<string,Operation> {
         :['bootstrap','seed-batch'].includes(a.operation)?entry.schema.omit({dryRun:true,approved:true,preflight:true}):entry.schema;
       return {operation:a.operation,description:entry.description,...(a.both?{inputSchema:toJsonSchemaCompat(entry.schema)}:{}),cliPayloadSchema:toJsonSchemaCompat(payload)};
     }),
-    bootstrap:op('Preflight an initial map and facts together; publication requires developer approval and the matching preflight token.',{pillars:z.array(PillarDefinition).min(1),...batch},a=>{
+    bootstrap:op('Draft an initial map and facts without writes. Publication requires developer content approval or explicit delegation to publish within scope, plus the matching preflight token.',{pillars:z.array(PillarDefinition).min(1),...batch},a=>{
       if(!a.dryRun && a.approved!==true)throw new Error('Developer approval required for boundaries and facts.');
       return store.bootstrap(a.pillars,a.batches,a.dryRun,a.preflight);
     }),
@@ -51,7 +53,7 @@ export function operations(store:Store):Record<string,Operation> {
       if(!a.dryRun && a.approved!==true)throw new Error('Developer approval required for facts.');
       return store.bootstrap(undefined,a.batches,a.dryRun,a.preflight);
     }),
-    init:op('Initialize or refresh repository guidance, MCP configuration, advisory hook and local Markdown.',{},()=>initialize(store)),
+    init:op('Initialize or refresh repository setup; report completed/failed steps and continue when advisory hook permissions are unavailable.',{skipHook:z.boolean().default(false)},a=>initialize(store,a)),
     'refresh-guidance':op('Refresh only managed guidance; preserve surrounding content and shared knowledge.',{},()=>refreshGuidance(store)),
     scan:op('Discover a proposed responsibility map; no approval or shared knowledge write.',{exclude:z.array(relativePath).default([])},a=>discover(store,a.exclude)),
     approve:op('Approve the developer-reviewed responsibility map.',{pillars:z.array(PillarDefinition),standaloneReason:z.string().optional(),...approval,...verbose},a=>mutation('approve',a,()=>store.approveDefinitions(a.pillars,a.standaloneReason))),
