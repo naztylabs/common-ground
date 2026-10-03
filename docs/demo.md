@@ -1,6 +1,6 @@
-# Demo the chapter beta
+# Synthetic workflow demo
 
-Build and pack the source, then install the resulting `common-ground-knowledge-0.3.0-beta.1.tgz` using npm. Copy `examples/demo-monorepo` to a separate directory and run:
+Build and pack the source, then install the resulting `nazty_labs-common-ground-0.5.1.tgz` using npm. Copy `examples/demo-monorepo` to a separate directory and run:
 
 ```sh
 cground init
@@ -19,7 +19,7 @@ cground fact web-components/search search-minimum
 cground review-plan web-components/search --facts search-minimum
 ```
 
-The supplied plan is synthetic reviewed fixture data. Real initialization requires an agent to explain and refine the proposed ownership map with the developer.
+The supplied plan is synthetic reviewed fixture data. Real initialization requires source review and refined responsibility boundaries. Initial publication needs content approval or explicit developer delegation to save the verified map within scope.
 
 Open the directory in VS Code and start Common Ground with MCP: List Servers. Ask Copilot to route a build failure to its owner and inspect the recorded CI → workspace dependency, then select Search and explain its facts. Check that six default tools are available. The original CLI commands below remain supported. Commit source, shared registry, Start Here guide, detailed policy, instructions, and MCP configuration; local metadata remains ignored. No Java build dependency is invented: the fixture does not establish a complete Nx/Java application stack.
 

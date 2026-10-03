@@ -26,7 +26,9 @@ async function input(name:string, args:string[], values:Values):Promise<unknown>
   const [first,second,third]=args;
   const paging={cursor:values.cursor,limit:values.limit===undefined?undefined:Number(values.limit)};
   switch(name) {
-    case 'lookup': return {path:values.path,query:args.join(' ')||undefined,verify:values.verify??false,...paging};
+    case 'init': return {skipHook:values['skip-hook']??false};
+    case 'lookup': return {path:values.path,query:args.join(' ')||undefined,verify:values.verify??false,verbose:values.verbose??false,...paging};
+    case 'source-search': return {paths:list(values.path),query:args.join(' '),limit:paging.limit};
     case 'assess': return {paths:list(values.touched),review:values.review??false,...paging};
     case 'schema': return {operation:first,both:values.both??false};
     case 'scan': return {exclude:list(values.exclude)};
@@ -60,10 +62,10 @@ async function input(name:string, args:string[], values:Values):Promise<unknown>
 }
 function initText(result:Awaited<ReturnType<typeof initialize>>, root:string) {
   const link=(file:string)=>`[${file}](${path.resolve(root,file)})`;
-  return ['Common Ground initialized.',result.hook,
+  return [result.setup.status==='complete-with-warnings'?'Common Ground initialized with setup warnings.':'Common Ground initialized.',result.hook,
     'existingRegistry' in result
       ? `Ask your agent to summarize knowledge changes with cground review before sharing.`
-      : `Ask your agent to summarize the proposed responsibility map for approval.\nYour agent presents the proposed pillars and facts for approval, then writes the shared knowledge.`,
+      : `Ask your agent to summarize the proposed responsibility map and verify its facts.\nPublish with content approval or explicit developer delegation to save the initial map within scope.`,
     `Local Markdown: ${link(result.markdown.path)}`].join('\n');
 }
 function checkText(result:CheckResult) {

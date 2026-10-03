@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write
     env:
       RELEASE_TAG: ${{ github.ref_name }}
     steps:
@@ -28,6 +29,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           package-manager-cache: false
+          registry-url: https://registry.npmjs.org
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11
       - name: Verify tag matches package version
         run: |
           node --input-type=module <<'NODE'
@@ -47,6 +51,13 @@ jobs:
           test "$actual" = "${RELEASE_TAG#v}"
           "$RUNNER_TEMP/common-ground-install/bin/cground" --help
           (cd release && sha256sum --check *.sha256)
+      - name: Publish to npm
+        run: |
+          tag=latest
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            tag=next
+          fi
+          npm publish ./release/*.tgz --access public --tag "$tag" --registry https://registry.npmjs.org
       - name: Publish GitHub release assets
         env:
           GH_TOKEN: ${{ github.token }}

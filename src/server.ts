@@ -12,6 +12,7 @@ import { page } from './paging.js';
 export { page } from './paging.js';
 import { ownershipMap, pillarGraph, startHere, tidyPlan } from './navigation.js';
 import { version } from './version.js';
+import { GroundError, errorPayload } from './errors.js';
 const result = (data: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(data) }] });
 export function createFullServer(store:Store){
   const server=new McpServer({name:'common-ground',version});
@@ -75,6 +76,6 @@ export function registerOperations(server:McpServer,store:Store) {
         else {value={...page(Object.entries(catalog).map(([operation,entry])=>({operation,description:entry.description})),request.cursor,request.limit),transport:'serve is the process entry point, not a nested operation. Repository root is fixed by the host configuration.'};}
       } else value=await runOperation(store,operation,args);
       return {content:[{type:'text' as const,text:JSON.stringify(value)}]};
-    }catch(e:any){return {content:[{type:'text' as const,text:JSON.stringify({error:e.message})}],isError:true};}
+    }catch(e:any){return {content:[{type:'text' as const,text:JSON.stringify({error:e.message,...(e instanceof GroundError&&e.code==='INIT_INCOMPLETE'?{diagnostic:errorPayload(e)}:{})})}],isError:true};}
   });
 }

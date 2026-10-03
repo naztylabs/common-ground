@@ -1,6 +1,6 @@
 export const bootstrapNext = {action:'review-map-and-facts',approvalRequired:true,
   command:'cground bootstrap PLAN.json --dry-run',schema:'cground schema bootstrap',
-  guide:'.common-ground/START_HERE.md'};
+  guide:'.common-ground/START_HERE.md',authorization:'Draft by default. Explicit developer delegation to save/publish the initial map may authorize publication within scope; flags and tokens do not supply permission.'};
 
 export const rules = `## Common Ground
 
@@ -14,7 +14,7 @@ If corrections are needed, request assess --review. Before editing, read [.commo
 
 Task contexts are optional for aggregated reporting and deferred additions. Start one when needed; propose_facts queues drafts, finish after the main task, then ask "Ready to make the following facts available to the team?" New facts, chapters, pillars and ownership expansion need developer direction. If started, finish the task once; reuse cached responses only within it and refresh:true after context loss.
 
-Default to no write. Keep durable patterns, not debugging history; library-local detail belongs in its README. Resolve disputed behavior with the developer. No change means no Common Ground report. More: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
+Default to no write. Keep durable patterns, not debugging history; library-local detail belongs in its README. Resolve disputed behavior with the developer. No change means no Common Ground report. Setup: [.common-ground/START_HERE.md](.common-ground/START_HERE.md).
 `;
 
 export const policy = `## Common Ground
@@ -27,7 +27,7 @@ Code is the source of truth. Notes cache durable repository knowledge; matching 
 - Default to no write. Unrelated work and unchanged facts produce no shared knowledge changes. Library-local detail belongs in its README. Each fact holds one coherent, source-backed claim of at most 2,000 characters.
 - Review every existing fact in each required logical chapter before revision. Follow dependency and dependent links, request the review checklist, and verify all required source and documentation. A verification declaration does not prove an agent read or understood a file.
 - Correct verified contradictions in the affected scope quietly, preserving IDs. Merge duplicates and remove superseded claims with explicit reasons and repaired references. Never clean up unrelated responsibilities. Ask if uncertainty blocks the task; otherwise collect it for completion.
-- New facts, chapters, pillars and ownership expansion require developer direction. A new pillar also needs an uncovered standalone responsibility. Approval flags declare approval of the exact content; they never grant autonomous permission. Boundary approval does not approve facts.
+- New facts, chapters, pillars and ownership expansion require developer direction. A new pillar also needs an uncovered standalone responsibility. Approval flags declare developer direction; they never grant autonomous permission or prove human review. Boundary approval does not approve facts. For initial setup, explicit delegation to save/publish may cover verified boundaries and facts within the requested scope; see START_HERE.md. Routine additions still follow the deferred approval workflow below.
 - Chapter paths define non-overlapping ownership. Fact source scopes stay inside ownership; supporting evidence may cite other repository files and is tracked for freshness. Exact evidence, safe paths and valid dependencies remain mandatory.
 - Publish a complete reviewed transaction. Source or registry conflicts reject publication. Unchanged reviews use ignored local receipts; only changed chapters are rewritten. Never bypass required tests based on notes.
 
@@ -46,39 +46,33 @@ See START_HERE.md for commands and state-specific setup. Keep knowledge.json and
 
 export const startGuide = `# Start Here — Common Ground
 
-Common Ground is an open-source framework for shared, Git-backed repository knowledge. The CLI and local MCP server are its interfaces. Follow AGENTS.md and read [POLICY.md](POLICY.md) before knowledge edits.
+Common Ground is a framework for shared, Git-backed repository knowledge. Its interfaces are the CLI and local MCP server. Code is the source of truth.
 
-## First use: complete setup
+## Initial setup: draft, verify, publish
 
-Run cground init. It installs guidance/configuration and writes a candidate map to .common-ground/local/bootstrap.json without creating knowledge.json. Read source and READMEs, refine boundaries and verify facts. Discovery labels are hints, not facts.
+1. Run cground init. It creates guidance, MCP configuration and a local candidate map without creating knowledge.json. Use --skip-hook if Git metadata is protected; hook permission failures are advisory and setup continues. The setup report lists completed, skipped, failed and pending steps. Retry safely after fixing a failure; existing registries and bootstrap drafts are preserved. Install the reminder later with cground hook install.
+2. Read source and directory READMEs. Refine .common-ground/local/bootstrap.json into responsibility boundaries and verified facts. detections are raw technology/path signals; responsibilityHints and directory paths are suggestions. Inspect ownershipIncomplete, pathsTruncated, scan.truncated and unclassified samples. Expand or split incomplete boundaries. Follow coveragePrompts for release triggers, versioning, artifacts and publication where detected. Validity and unchanged evidence do not establish complete coverage.
+3. Use cground schema bootstrap and cground bootstrap --help --example. Prepare pillars plus batches of chapterId/facts, then run cground bootstrap PLAN.json --dry-run. This validates the whole transaction without writes and returns source-file counts and a preflight token. JSON commands also accept --stdin.
+4. Establish publication direction from the developer's request. “Initialize” or “generate a map” means draft by default. “Initialize and save/publish the map autonomously” explicitly delegates publication of verified initial boundaries and facts within that scope. Honor an existing delegation without asking again. Otherwise present the exact boundaries and facts in plain language and ask “Ready to make the following facts available to the team?” Wait for approval before publication. A draft-only request never authorizes publication; boundary-only approval never approves facts.
+5. With publication direction, apply the same payload using --approve --preflight TOKEN, run cground check, and summarize what was saved with source links and remaining coverage gaps. Source or payload changes require a fresh dry run and verification; confirm they remain within any delegated scope, or obtain new content approval. Flags declare direction and tokens detect changes; neither proves human review, identity, semantic truth or completeness. Host tool approval settings still apply.
 
-Use cground schema bootstrap for the input schema and cground bootstrap --help --example for a synthetic payload. Submit pillars plus batches of chapterId/facts to cground bootstrap PLAN.json --dry-run. Preflight checks the whole transaction and reports source-file counts without writes. Present boundaries and facts in plain language; distinguish their approvals and ask "Ready to make the following facts available to the team?" Only after developer approval, apply the same payload with --approve --preflight TOKEN. Source or payload changes require a new dry run and review. The receipt records the approved content token; it is not proof of identity or semantic truth.
+The bootstrap path above is self-contained for an empty registry. Before revising existing knowledge, read [POLICY.md](POLICY.md) and every required chapter/source page. For separate setup stages, cground approve creates boundaries only; seed-batch --dry-run and seed-batch --approve --preflight TOKEN populate approved empty chapters with authorized facts. Use command help for exact inputs.
 
-The separate workflow remains available: cground approve .common-ground/local/bootstrap.json --approve approves boundaries only. Facts still require approval. cground seed-batch BATCH.json --dry-run checks multiple approved empty chapters together; apply with --approve --preflight TOKEN. Single-chapter cground seed PILLAR/CHAPTER FACTS.json --approve also works. JSON input commands accept --stdin instead of a filename, or - as the filename. cground schema seed shows the facts-array shape.
-
-A bootstrap-required or not-initialized response has no taskId. Continue the main task from source; do not assess, propose facts or finish until task_context start returns a taskId. Never fabricate an empty registry to suppress setup. After approved setup, use lookup; start a task only when deferred additions or aggregate reporting need one. Run init to recreate a missing proposal or refresh managed guidance; existing registries are preserved.
+A bootstrap-required or not-initialized response has no taskId. Continue the developer task from source. Never fabricate an empty registry or call task assess/propose/finish without a returned taskId. After setup, use lookup; task contexts are optional for deferred additions or aggregate reporting.
 
 ## My build failed. Where do I go?
 
-1. Inspect the failure, current checkout and directory README. Use cground lookup --path PATH or a short query. It returns a few facts and source paths without task state; --verify checks selected facts and upstream evidence. Default freshness is not checked.
-2. Do the developer task. Run cground assess --touched PATH1,PATH2 using only its actual changed paths. It compares source fingerprints for matching facts. No-fact-review needs only relevant documentation/source review; source-review-required lists claims to verify. Source drift does not prove a claim false.
-3. If a claim needs correction, rerun assess with --review for paginated complete chapters, evidence and verification paths. Read every required page and source/document before preparing. cground prepare-patch PATCH.json accepts no taskId for a standalone correction; cground commit PROPOSAL_ID rechecks conflicts. Summarize the actual correction directly. No start/finish ceremony is required.
-4. For deferred additions or aggregate correction reporting, the original task_context workflow remains available. Start once when needed, queue new facts locally, finish after the main task and tests, and present one approval batch. Complete whole-chapter review and explicit admission approval still apply.
+Follow AGENTS.md for lookup and task-touched assessment. Lookup navigation contains separately labeled ownership/source hints, not facts; freshness is not checked by default. Read source when matches only partly cover a question. --verify checks selected facts and dependencies, not topic completeness or navigation hints.
 
+For corrections, assess --review supplies complete chapters and verification paths. Read POLICY.md and every required page before prepare-patch and commit. For deferred additions and task reporting, POLICY.md describes the task_context workflow.
 
-## Commands and review
+## Setup and review commands
 
-cground doctor detects stale managed instructions. Use cground refresh-guidance after upgrading to update only guidance, preserving surrounding developer text.
+- cground doctor checks setup; cground refresh-guidance updates managed instructions while preserving surrounding text. A healthy check returns next: null.
+- cground check [TARGET] validates structure, exact evidence and freshness. --all-results includes passing rows; follow nextCursor. --cleanup y creates a developer-requested cleanup plan, not a completed repair.
+- cground review [TARGET] summarizes changes against HEAD. --staged selects the index; --evidence includes changed quotations. Explain before → after, why, sources and a keep/approve/reverify recommendation.
+- cground export refreshes [local/knowledge.md](local/knowledge.md), the ignored reference excluding drafts. Successful knowledge writes refresh it too.
+- cground hook mute/unmute controls advisory reminders. Existing hook managers can call cground hook check.
 
-Every command supports --help without running it. cground schema OPERATION exposes the CLI payload shape; --both also includes MCP arguments; the MCP equivalent is cground operation:help with args.operation. Both MCP profiles expose all workflows through cground; the default profile also has five compact workflow tools, while --profile full retains the original detailed tools. Approval flags never override host approval settings.
-
-cground validate [TARGET] checks all knowledge, a pillar, chapter or fact. It reports failures by default; --all-results includes passing rows. Follow nextCursor when present. Exit 1 means stale, invalid or unpopulated. Checks refresh the ignored Markdown reference without changing shared facts. --cleanup y requires developer-requested cleanup and returns a local tidyId for the calling agent to verify and submit corrections. Validation is not semantic verification.
-
-cground review [TARGET] summarizes meaningful changes against HEAD; --staged reviews the index and --evidence includes changed quotes. Explain before → after, why, source links and a keep/approve/reverify recommendation. Never ask developers to edit JSON. Revision-only churn is omitted.
-
-cground export refreshes [local/knowledge.md](local/knowledge.md), the complete generated reference. It excludes pending drafts and is not proof of source validity. Successful knowledge writes also refresh it. Mutation receipts are compact; --verbose on approve, approve-chapters, seed and admit returns full objects.
-
-The advisory pre-commit hook checks staged knowledge and sources, reminds the developer to review, and allows the commit. It never approves or changes facts. Use cground hook mute/unmute for this checkout; existing hook managers can call cground hook check.
-
-Keep knowledge.json, this guide and POLICY.md in Git. Keep local/ ignored and retain active tasks until their review is complete. Detailed contracts and request formats are in docs/pillar-contract.md and docs/quiet-workflow.md in the framework repository.
+Every command has --help. cground schema OPERATION gives CLI payloads; --both adds MCP arguments. Both MCP profiles expose these workflows through cground. Keep knowledge.json and managed guidance tracked; local/ is ignored. See POLICY.md for maintenance invariants and the framework's docs/pillar-contract.md and docs/quiet-workflow.md for full contracts.
 `;

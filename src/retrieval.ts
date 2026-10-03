@@ -4,6 +4,7 @@ import { chapterKey, relativePath, type RegistryRecord } from './model.js';
 import { Workflow } from './workflow.js';
 import { page } from './paging.js';
 import { ownershipMap, pillarGraph, tidyPlan } from './navigation.js';
+import { queryTerms, termWeights, queryPath, matchFields } from './matching.js';
 export async function listPillars(store:Store,cursor?:string,limit?:number){return page((await store.read()).pillars.map(({id,title,scope,excludes,chapters})=>({id,title,scope,excludes,chapterCount:chapters.length})),cursor,limit);}
 export async function listChapters(store:Store,pillarId:string,cursor?:string,limit?:number){
   const reg=await store.read();const p=reg.pillars.find(p=>p.id===pillarId);if(!p)throw new Error('Unknown pillar');
@@ -16,9 +17,16 @@ export async function readChapter(store:Store,key:string,cursor?:string,limit?:n
 export async function readFact(store:Store,key:string,id:string){const reg=await store.read();const c=store.chapter(reg,key);const fact=c.facts.find(f=>f.id===id);if(!fact)throw new Error('Unknown fact');return {chapterId:key,revision:c.revision,fact,freshness:await store.status(key,reg)};}
 export async function search(store:Store,query:string,limit=8,chapterId?:string,registry?:RegistryRecord,cache?:Map<string,Promise<string>>){
   if(!Number.isInteger(limit)||limit<1||limit>20)throw new Error('Search limit must be between 1 and 20');
-  const terms=query.toLocaleLowerCase().split(/[^\p{L}\p{N}_]+/u).filter(Boolean);
+  const terms=queryTerms(query);
   const reg=registry??await store.read();if(chapterId)store.chapter(reg,chapterId);
-  const matches=store.chapters(reg).filter(e=>!chapterId||e.key===chapterId).flatMap(({key,pillar,chapter})=>chapter.facts.map(f=>({chapterId:key,fact:{id:f.id,statement:f.statement,evidencePaths:[...new Set(f.evidence.map(e=>e.path))]},score:terms.reduce((n,t)=>n+Number(`${f.statement} ${f.evidence.map(e=>e.path).join(' ')}`.toLocaleLowerCase().includes(t))*3+Number(`${pillar.title} ${chapter.title} ${chapter.scope}`.toLocaleLowerCase().includes(t)),0)}))).filter(m=>m.score>0).sort((a,b)=>b.score-a.score).slice(0,limit);
+  const entries=store.facts(reg).filter(entry=>!chapterId||entry.chapterId===chapterId);
+  const {weights}=termWeights(terms,entries.map(({key,fact})=>`${key} ${fact.statement} ${fact.evidence.map(e=>e.path).join(' ')}`));
+  const path=queryPath(query);
+  const matches=entries.map(({key,chapterId,fact})=>{
+    const match=matchFields(terms,`${key} ${fact.evidence.map(e=>e.path).join(' ')}`,fact.statement,weights);
+    const directPath=!!path&&fact.evidence.some(e=>e.path===path||e.path.startsWith(`${path}/`));
+    return {chapterId,fact:{id:fact.id,statement:fact.statement,evidencePaths:[...new Set(fact.evidence.map(e=>e.path))]},matchedTerms:match.matchedTerms,score:match.weight,directPath};
+  }).filter(m=>m.directPath||m.matchedTerms.length>0).sort((a,b)=>Number(b.directPath)-Number(a.directPath)||b.score-a.score||b.matchedTerms.length-a.matchedTerms.length||`${a.chapterId}/${a.fact.id}`.localeCompare(`${b.chapterId}/${b.fact.id}`)).slice(0,limit);
   const states=new Map();for(const m of matches)if(!states.has(m.chapterId))states.set(m.chapterId,await store.status(m.chapterId,reg,cache));
   return matches.map(m=>({...m,freshness:states.get(m.chapterId)}));
 }

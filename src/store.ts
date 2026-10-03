@@ -267,9 +267,9 @@ export class Store {
       }
       return {dryRun,validation:'structure, exact quotations and freshness; not semantic verification',preflight:token,
         approvalRequired:dryRun?{boundaries:!!definitions,facts:true}:false,
-        approved:dryRun?undefined:{boundaries:!!definitions,facts:true,content:token},
+        approved:dryRun?undefined:{boundaries:!!definitions,facts:true,content:token,declarationOnly:true,humanReviewVerified:false},
         chapters:Object.keys(counts),factCount:batches.reduce((n,b)=>n+b.facts.length,0),sourceFileCounts:counts,
-        outputPath:'.common-ground/knowledge.json',next:dryRun?'Review boundaries and facts with the developer, then apply this payload with --approve and --preflight.':'Use cground lookup for relevant facts and source paths. Task contexts are optional for deferred additions or aggregate reporting.'};
+        outputPath:'.common-ground/knowledge.json',next:dryRun?'Verify boundaries and facts. Obtain content approval unless explicit developer delegation already authorizes publishing this initial map within scope, then apply with --approve and --preflight.':'Use cground lookup for relevant facts and source paths. Task contexts are optional for deferred additions or aggregate reporting.'};
     };
     return dryRun?execute():this.lock(execute);
   }

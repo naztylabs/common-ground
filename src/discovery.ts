@@ -14,7 +14,8 @@ const markers=/^(CMakeLists\.txt|Makefile|meson\.build|package\.json|angular\.js
 const source=/\.(?:[cm]?[jt]sx?|vue|svelte|astro|java|kt|swift|c|cc|cpp|cxx|h|hh|hpp|hxx|m|py|go|rs|cs|fs|vb|rb|php|dart|xml|json|toml|ya?ml|gradle|kts)$/;
 const ci=(file:string)=>/^(?:.*\/)?(?:azure-pipelines[^/]*\.ya?ml|\.gitlab-ci\.ya?ml|Jenkinsfile)$/.test(file)||/(?:^|\/)(?:\.github\/workflows|\.circleci)\/[^/]+\.ya?ml$/.test(file)||/(?:^|\/)pipelines\/.*\.ya?ml$/.test(file);
 type Project={root:string; technologies:Set<string>; evidence:Set<string>; library:boolean};
-type Detection={root:string;technologies:string[];evidence:string[];evidenceCount:number;chapterId:string;pathHintCount:number;pathsTruncated:boolean};
+type Detection={root:string;technologies:string[];evidence:string[];evidenceCount:number;chapterId:string;pathHintCount:number;pathsTruncated:boolean;
+  matchedFileCount:number;ownershipCoverage:'incomplete'|'scanned-files';rationale:string;directoryHints:string[]};
 const roles:Record<string,[string,string]>={
   'ci-cd':['CI/CD Pipelines','Pipeline definitions, templates and execution contracts.'],
   'workspace-tooling':['Workspace Tooling','Shared workspace configuration and build orchestration.'],
@@ -37,7 +38,7 @@ const npmSignals:Record<string,string>={'@angular/core':'Angular',react:'React',
 
 /** Bounded breadth-first discovery keeps deep application trees from starving sibling manifests. */
 async function scanFiles(store:Store,exclude:string[]){
-  const files:string[]=[],queue=['.'],skipped:{path:string;reason:string}[]=[];let inspectedEntries=0,truncated=false;
+  const files:string[]=[],queue=['.'],skipped:{path:string;reason:string}[]=[],skippedPaths:string[]=[];let inspectedEntries=0,truncated=false;
   for(let offset=0;offset<queue.length&&!truncated;offset++){
     const directory=queue[offset];if(directory!=='.')await store.safe(directory);
     const children:string[]=[];
@@ -45,7 +46,7 @@ async function scanFiles(store:Store,exclude:string[]){
       if(inspectedEntries===ENTRY_LIMIT){truncated=true;break;}inspectedEntries++;
       const file=path.posix.join(directory,entry.name);
       const reason=entry.isSymbolicLink()?'symlink':excluded.has(entry.name.toLowerCase())||entry.name.startsWith('.env')?'dependency, generated output or tool configuration':exclude.some(p=>inside(file,p))?'explicit exclusion':undefined;
-      if(reason){skipped.push({path:entry.name.startsWith('.env')?'[environment file]':file,reason});continue;}
+      if(reason){skippedPaths.push(file);skipped.push({path:entry.name.startsWith('.env')?'[environment file]':file,reason});continue;}
       if(entry.isDirectory())children.push(file);else if(entry.isFile())files.push(file);
     }
     queue.push(...children.sort((a,b)=>{
@@ -53,7 +54,55 @@ async function scanFiles(store:Store,exclude:string[]){
       return priority(a)-priority(b)||a.localeCompare(b);
     }));
   }
-  return {files:files.sort(),inspectedEntries,truncated,skipped:skipped.slice(0,30),skippedCount:skipped.length};
+  return {files:files.sort(),inspectedEntries,truncated,skipped:skipped.slice(0,30),skippedPaths,skippedCount:skipped.length};
+}
+
+/** Collapse only homogeneous, fully scanned subtrees. Never infer whole-repository ownership. */
+function ownershipHints(files:string[],scan:Awaited<ReturnType<typeof scanFiles>>) {
+  const owned=new Set(files),directories=new Set<string>();
+  for(const file of files){let dir=path.posix.dirname(file);while(dir!=='.'){directories.add(dir);dir=path.posix.dirname(dir);}}
+  const chosen:string[]=[];
+  if(!scan.truncated)for(const dir of [...directories].sort((a,b)=>a.split('/').length-b.split('/').length||a.localeCompare(b))){
+    if(dir==='.github'||chosen.some(parent=>inside(dir,parent))||scan.skippedPaths.some(file=>inside(file,dir)))continue;
+    const contents=scan.files.filter(file=>inside(file,dir));
+    if(contents.some(file=>/(^|\/)(tests?|examples?|samples?|bindings|python)\//.test(file.slice(dir.length+1))))continue;
+    // Mixed source types (for example bindings and a native library) need separate responsibility review.
+    const families=new Set(contents.map(file=>/\.(?:c|cc|cpp|cxx|h|hh|hpp|hxx)$/.test(file)?'native':/\.py$/.test(file)?'python':/\.[cm]?[jt]sx?$/.test(file)?'javascript':'other'));
+    families.delete('other');
+    if(contents.length>1&&families.size<=1&&contents.every(file=>owned.has(file)))chosen.push(dir);
+  }
+  const paths=[...chosen,...files.filter(file=>!chosen.some(dir=>inside(file,dir)))];
+  return {paths:paths.slice(0,30),directoryHints:chosen.slice(0,30),truncated:paths.length>30};
+}
+
+/** Require independent implementation signals and a narrowly named specification before raising a review question. */
+function formatArchitecturePrompts(files:string[]) {
+  const filenameWords=(file:string)=>path.posix.basename(file,path.posix.extname(file))
+    .replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/([A-Z])([A-Z][a-z])/g,'$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join(' ');
+  const implementations=files.filter(file=>/\.(?:[cm]?[jt]sx?|java|kt|swift|c|cc|cpp|cxx|h|hh|hpp|hxx|m|py|go|rs|cs|fs|vb|rb|php|dart)$/i.test(file));
+  const roles=[/\b(?:headers?|validate|validation)\b/,/\b(?:nodes?|chunks?|writer|writing)\b/,/\b(?:hierarchy|hierarchies|serialize|serialization|serializer)\b/]
+    .map(pattern=>implementations.filter(file=>pattern.test(filenameWords(file))));
+  const specifications=files.filter(file=>{
+    if(!/\.(?:md|mdx|rst|txt|adoc|pdf)$/i.test(file))return false;
+    const name=filenameWords(file);
+    return /^(?:(?:file|binary|serialization) )?format(?: spec(?:ification)?)?$/.test(name)
+      ||/^(?:spec|specification)$/.test(name)&&/^(?:file[-_]?)?format$/i.test(path.posix.basename(path.posix.dirname(file)));
+  });
+  if(!specifications.length||roles.some(paths=>!paths.length))return [];
+  // A file with several suggestive words cannot stand in for independent source locations.
+  const distinct=(index:number,chosen:string[]):string[]|undefined=>{
+    if(index===roles.length)return chosen;
+    for(const file of roles[index])if(!chosen.includes(file)){const result=distinct(index+1,[...chosen,file]);if(result)return result;}
+    return undefined;
+  };
+  const representatives=distinct(0,[]);if(!representatives)return [];
+  const paths=[...new Set([...representatives,...specifications,...roles.flat()])];
+  return [{responsibility:'Format architecture',paths:paths.slice(0,10),pathCount:paths.length,pathsTruncated:paths.length>10,
+    questions:['Do these sources and the specification describe one coherent format contract: header/version validation, node/chunk writing and hierarchy serialization?',
+      'Has navigation to this format repeatedly been needed beyond a single query, and would a small source entry help?',
+      'Can the verified entry fit an existing approved chapter and its ownership boundaries?',
+      'Has the developer directed adding the entry or any required ownership expansion after reviewing the source relationships?'],
+    basis:'Heuristic review prompt from filenames only; relationships and topic coverage are unverified. No navigation entry, ownership boundary or fact is created.'}];
 }
 
 export async function discover(store:Store,exclude:string[]=[]){
@@ -201,14 +250,33 @@ export async function discover(store:Store,exclude:string[]=[]){
     const id=group==='ci-cd'?group:role(p),[title,scope]=roles[id];
     let pillar=definitions.find(d=>d.id===id);if(!pillar){pillar={id,title,scope,excludes:'Responsibilities owned by other approved pillars.',chapters:[]};definitions.push(pillar);}
     const chapterId=p.root==='.'?'overview':`${p.root.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'project'}-${createHash('sha256').update(p.root).digest('hex').slice(0,8)}`;
-    const paths=[...files].sort((a,b)=>Number(p.evidence.has(b))-Number(p.evidence.has(a))||a.localeCompare(b)).slice(0,30);
-    for(const file of paths)selected.add(file);
+    const hints=ownershipHints([...files].sort((a,b)=>Number(p.evidence.has(b))-Number(p.evidence.has(a))||a.localeCompare(b)),scan),paths=hints.paths;
+    for(const file of scan.files)if(paths.some(scope=>inside(file,scope)))selected.add(file);
     pillar.chapters.push({id:chapterId,title:p.root==='.'?'Overview':`Project ${p.root}`.slice(0,100),scope,excludes:'Unrelated projects and other pillar responsibilities.',paths});
     detections.push({root:p.root,technologies:[...p.technologies].sort(),evidence:[...p.evidence].sort().slice(0,6),evidenceCount:p.evidence.size,
-      chapterId:`${id}/${chapterId}`,pathHintCount:paths.length,pathsTruncated:files.length>paths.length});
+      chapterId:`${id}/${chapterId}`,pathHintCount:paths.length,pathsTruncated:hints.truncated,matchedFileCount:files.length,
+      ownershipCoverage:scan.truncated||hints.truncated?'incomplete':'scanned-files',directoryHints:hints.directoryHints,
+      rationale:`${title} is a coarse candidate from ${[...p.technologies].sort().join(', ')} signals at ${p.root}. Inspect source to separate runtime, interfaces, tests, examples and delivery responsibilities; technology labels do not establish ownership.`});
   }
+  const responsibilityHints=[
+    {responsibility:'Native library or application',pattern:/(^|\/)(cpp|include|native)(\/|$)/},
+    {responsibility:'Python interface or application',pattern:/(^|\/)(python|bindings)(\/|$)/},
+    {responsibility:'Test validation and fixtures',pattern:/(^|\/)(tests?|testing)(\/|$)/},
+    {responsibility:'Usage examples',pattern:/(^|\/)(examples?|samples?)(\/|$)/},
+    {responsibility:'Build and delivery',pattern:/(^|\/)(CMakeLists\.txt|pyproject\.toml|package\.json|\.release-it\.[^/]+)$|(^|\/)\.github\/workflows\//},
+  ].flatMap(({responsibility,pattern})=>{
+    const paths=scan.files.filter(file=>pattern.test(file));return paths.length?[{responsibility,paths:paths.slice(0,6),pathCount:paths.length,pathsTruncated:paths.length>6,
+      rationale:'Path conventions suggest a responsibility to review, not an approved boundary or a factual claim.'}]:[];
+  });
+  const deliveryFiles=scan.files.filter(file=>ci(file)||/(^|\/)(package\.json|pyproject\.toml|setup\.py|CMakeLists\.txt|\.release-it\.[^/]+)$/.test(file));
+  const ownershipIncomplete=scan.truncated||candidates.length>PROJECT_LIMIT||detections.some(d=>d.pathsTruncated);
   return {schemaVersion:2,requiresDeveloperApproval:true,scan:{inspectedFiles:scan.files.length,inspectedEntries:scan.inspectedEntries,truncated:scan.truncated,limit:ENTRY_LIMIT,excludedPaths:exclude,skipped:scan.skipped,skippedCount:scan.skippedCount,manifestBytesRead,manifestByteLimit:TOTAL_BYTES},
     pillars:definitions,detections,detectedProjectCount:candidates.length,projectsTruncated:candidates.length>PROJECT_LIMIT,
+    responsibilityHints,ownershipIncomplete,
+    next:ownershipIncomplete?'Ownership hints are incomplete. Inspect omitted files and truncated trees, then expand or split boundaries before bootstrap. Do not publish the sampled map as complete.':'Review suggested responsibilities and directory boundaries against source, including unclassified and excluded areas, before bootstrap.',
+    coveragePrompts:[...(deliveryFiles.length?[{responsibility:'Build and delivery',paths:deliveryFiles.slice(0,10),pathCount:deliveryFiles.length,pathsTruncated:deliveryFiles.length>10,
+      questions:['How are versions chosen and releases triggered?','Which jobs build and test each artifact?','Where are artifacts published, and what gates publication?','Which distribution steps are external or not established by inspected source?'],
+      basis:'Review prompts from detected filenames; validation does not establish completeness.'}]:[]),...formatArchitecturePrompts(scan.files)],
     warnings:warnings.slice(0,10),warningCount:warnings.length,unclassifiedSample:scan.files.filter(f=>!selected.has(f)).slice(0,30),
     note:'Heuristic candidates only. Frameworks are navigation signals, not facts or automatic pillar boundaries. Review and merge responsibility boundaries, expand sampled paths, and inspect unclassified or truncated areas. No facts or dependencies have been inferred.'};
 }

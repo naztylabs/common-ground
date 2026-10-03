@@ -4,19 +4,21 @@ import { relativePath, type RegistryRecord } from './model.js';
 import { Store, same } from './store.js';
 import { page } from './paging.js';
 import { reviewDocuments } from './review-files.js';
+import { queryTerms, queryPath, termWeights, matchFields, termMatch } from './matching.js';
+import { isSourceSearchPathAllowed } from './source-search.js';
 
 const within=(file:string,scope:string)=>file===scope||file.startsWith(`${scope}/`);
 const overlaps=(a:string,b:string)=>within(a,b)||within(b,a);
 const digest=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const tracks=(fact:ReturnType<Store['facts']>[number]['fact'],file:string)=>fact.sourceScope.some(s=>within(file,s))||fact.evidence.some(e=>e.path===file);
 const paging={cursor:z.string().optional(),limit:z.number().int().min(1).max(20).optional()};
-export const Lookup=z.object({path:relativePath.optional(),query:z.string().trim().min(1).optional(),verify:z.boolean().default(false),cursor:paging.cursor,limit:z.number().int().min(1).max(5).default(5)}).strict();
+export const Lookup=z.object({path:relativePath.optional(),query:z.string().trim().min(1).optional(),verify:z.boolean().default(false),verbose:z.boolean().default(false),cursor:paging.cursor,limit:z.number().int().min(1).max(5).default(5)}).strict();
 export const Assess=z.object({paths:z.array(relativePath),review:z.boolean().default(false),...paging}).strict();
 
 async function registryOrSetup(store:Store){
   try{return await store.read();}catch(error:any){if(error.code!=='ENOENT')throw error;return undefined;}
 }
-const setup={state:'knowledge-unavailable',items:[],next:'Continue from source. Run cground init and review setup when appropriate; lookup requires no task context.'};
+const setup={state:'knowledge-unavailable',writesKnowledge:false,items:[],next:'Continue from source. Run cground init and review setup when appropriate; lookup requires no task context.'};
 
 /** Explicit verification is fact-scoped. A cache lives for this call only, never across reads/publication. */
 async function verifySelected(store:Store,registry:RegistryRecord,selected:string[]){
@@ -48,30 +50,61 @@ async function verifySelected(store:Store,registry:RegistryRecord,selected:strin
 export async function lookup(store:Store,input:unknown){
   const args=Lookup.parse(input);
   if(!args.path&&!args.query)throw new Error('Supply a lookup query or --path.');
-  const registry=await registryOrSetup(store);if(!registry)return setup;
-  const terms=[...new Set((args.query??'').toLocaleLowerCase().split(/[^\p{L}\p{N}_]+/u).filter(Boolean))];
-  const matches=store.facts(registry).map(entry=>{
+  const registry=await registryOrSetup(store);
+  if(!registry)return {summary:'No direct answer found.',...setup,coverage:{status:'unavailable'},sourceSearch:{status:'not-run',next:'Choose source paths and run cground source-search QUERY --path PATH; this reads live source without requiring stored knowledge.'}};
+  const entries=store.facts(registry),candidatePath=queryPath(args.query);
+  const inferredPath=!args.path&&candidatePath&&store.chapters(registry).some(({chapter})=>[...chapter.paths,...chapter.facts.flatMap(f=>f.evidence.map(e=>e.path))].some(p=>overlaps(candidatePath,p)))?candidatePath:undefined;
+  const requestedPath=args.path??inferredPath,terms=queryTerms(args.query??'');
+  const {weights,commonTerms,distinctiveTerms}=termWeights(terms,entries.map(({key,fact})=>`${key} ${fact.statement} ${fact.evidence.map(e=>e.path).join(' ')}`));
+  const matches=entries.map(entry=>{
     const {fact,chapter}=entry;
-    const pathScore=!args.path?0:fact.evidence.some(e=>overlaps(args.path!,e.path))?100:fact.sourceScope.some(s=>overlaps(args.path!,s))?50:chapter.paths.some(s=>overlaps(args.path!,s))?1:0;
-    const text=`${fact.statement} ${fact.evidence.map(e=>e.path).join(' ')}`.toLocaleLowerCase();
-    const score=pathScore+terms.reduce((n,t)=>n+Number(text.includes(t))*3,0);
-    return {entry,score,pathScore,matchedTerms:terms.filter(t=>text.includes(t))};
-  }).filter(m=>args.path?m.pathScore>0:m.score>0).sort((a,b)=>b.score-a.score||a.entry.key.localeCompare(b.entry.key));
-  const records=matches.map(({entry,pathScore,matchedTerms})=>({factId:entry.key,chapterId:entry.chapterId,statement:entry.fact.statement,sourcePaths:[...new Set(entry.fact.evidence.map(e=>e.path))],
-    matchReason:pathScore===100?'direct-evidence':pathScore===50?'source-scope':pathScore===1?'ownership-suggestion':'query-terms',
-    matchedTerms,unmatchedTerms:terms.filter(t=>!matchedTerms.includes(t)),
-    queryCoverage:terms.length?{matched:matchedTerms.length,total:terms.length}:null,
-    matchedPaths:args.path?(pathScore===100?entry.fact.evidence.map(e=>e.path):pathScore===50?entry.fact.sourceScope:entry.chapter.paths).filter(p=>overlaps(args.path!,p)):[],
-    relevance:pathScore===1?'ownership-only':terms.length&&matchedTerms.length<terms.length?'partial-query':'matched',
+    const pathScore=!requestedPath?0:fact.evidence.some(e=>overlaps(requestedPath,e.path))?100:fact.sourceScope.some(s=>overlaps(requestedPath,s))?50:chapter.paths.some(s=>overlaps(requestedPath,s))?1:0;
+    const sourceText=fact.evidence.map(e=>e.path).join(' ');
+    const lexical=matchFields(terms,`${entry.key} ${sourceText}`,fact.statement,weights);
+    const direct=pathScore!==1&&(inferredPath||!terms.length?pathScore===100:distinctiveTerms.length>0&&distinctiveTerms.every(term=>termMatch(`${fact.statement} ${sourceText}`,term)>0));
+    return {entry,pathScore,direct,...lexical};
+  }).filter(m=>requestedPath?m.pathScore>0:m.matchedTerms.length>0)
+    .sort((a,b)=>b.pathScore-a.pathScore||b.weight-a.weight||b.matchedTerms.length-a.matchedTerms.length||a.entry.key.localeCompare(b.entry.key));
+  const direct=matches.some(m=>m.direct);
+  const records=matches.map(({entry,pathScore,matchedTerms,direct})=>({factId:entry.key,statement:entry.fact.statement,sourcePaths:[...new Set(entry.fact.evidence.map(e=>e.path))],
+    relevance:pathScore===1?'ownership-only':terms.length&&matchedTerms.length<terms.length?'partial-query':direct?'matched':'weak-match',
+    ...(args.verbose?{chapterId:entry.chapterId,matchReason:pathScore===100?'direct-evidence':pathScore===50?'source-scope':pathScore===1?'ownership-suggestion':'query-terms',
+      matchedTerms,unmatchedTerms:terms.filter(t=>!matchedTerms.includes(t)),queryCoverage:terms.length?{matched:matchedTerms.length,total:terms.length}:null,
+      matchedPaths:requestedPath?(pathScore===100?entry.fact.evidence.map(e=>e.path):pathScore===50?entry.fact.sourceScope:entry.chapter.paths).filter(p=>overlaps(requestedPath,p)):[]}:{}),
   }));
-  const selected=page(records,args.cursor,args.limit,digest({registry,path:args.path,query:args.query,verify:args.verify}),6000);
+  const selected=page(records,args.cursor,args.limit,digest({registry,path:args.path,query:args.query,verify:args.verify,verbose:args.verbose}),6000);
   const verified=args.verify?await verifySelected(store,registry,selected.items.map(item=>item.factId)):undefined;
   if(args.verify&&!same(registry,await store.read()))throw new Error('Knowledge changed during lookup; retry.');
-  return {state:records.length?'matches':'no-matches',writesKnowledge:false,...selected,
-    coverage:'Lexical and path matches only; neither a match nor its absence establishes topic coverage. Ownership suggestions do not establish what the cited fact says about the requested path.',
-    next:records.length?'Use matchReason and matched terms to assess relevance. If these facts do not answer the question, read source rather than repeatedly broadening the query.':'No recorded match. Read source; missing knowledge does not imply missing behavior.',
-    items:selected.items.map(item=>({...item,freshness:verified?.get(item.factId)??{status:'not-checked'}})),
-    basis:args.verify?'Compares selected facts and upstream sources with stored baselines; ignores local review receipts. Not semantic verification.':'Stored navigation hints; freshness not checked. Open the source before relying on a claim.'};
+  // Navigation remains separate from facts and does not scan or hash the filesystem.
+  const routes=store.chapters(registry).map(({key,pillar,chapter})=>{
+    const paths=[...new Set([...chapter.paths,...Object.keys(chapter.sources).filter(file=>chapter.paths.some(scope=>within(file,scope)))])];
+    const lexical=matchFields(terms,`${key} ${pillar.title} ${chapter.title} ${paths.join(' ')}`,`${pillar.scope} ${chapter.scope}`,weights);
+    const pathMatch=!!requestedPath&&chapter.paths.some(scope=>overlaps(requestedPath,scope));
+    const ranked=paths.sort((a,b)=>Number(!!requestedPath&&overlaps(requestedPath,b))-Number(!!requestedPath&&overlaps(requestedPath,a))
+      ||terms.reduce((n,t)=>n+(termMatch(b,t)-termMatch(a,t))*(weights.get(t)??1),0)||a.localeCompare(b));
+    return {chapterId:key,title:chapter.title,paths:ranked.slice(0,5),pathCount:paths.length,pathsTruncated:paths.length>5,
+      matchedTerms:lexical.matchedTerms,pathMatch,weight:lexical.weight};
+  }).filter(route=>requestedPath?route.pathMatch:route.matchedTerms.length>0)
+    .sort((a,b)=>b.weight-a.weight||b.matchedTerms.length-a.matchedTerms.length||a.chapterId.localeCompare(b.chapterId));
+  const navigation={kind:'ownership-navigation',freshness:'not-checked',items:routes.slice(0,3).map(({pathMatch,weight,matchedTerms,pathCount,pathsTruncated,...route})=>({...route,...(args.verbose?{matchedTerms,pathCount,pathsTruncated}:{})})),total:routes.length,truncated:routes.length>3};
+  const fallbackPaths=[...new Set(requestedPath?[requestedPath]:[
+    ...matches.slice(0,5).flatMap(({entry})=>entry.fact.evidence.map(e=>e.path)),
+    ...routes.slice(0,3).flatMap(r=>r.paths),
+  ])].filter(isSourceSearchPathAllowed).slice(0,5);
+  const fallbackTerms=distinctiveTerms.length?distinctiveTerms:terms;
+  const resultItems=selected.items.map(item=>{
+    const freshness=verified?.get(item.factId)??{status:'not-checked'};
+    return {...item,freshness:!args.verbose&&freshness.status==='evidence-unchanged'?{status:freshness.status}:freshness};
+  });
+  return {summary:direct?'Relevant stored facts found.':'No direct answer found.',state:records.length?'matches':'no-matches',writesKnowledge:false,
+    coverage:{status:direct?'direct-match':records.length?'weak':'none',...(args.verbose?{terms,downweightedTerms:commonTerms,distinctiveTerms}:{})},
+    // With weak coverage, navigation precedes stored partial matches in serialized output.
+    ...(!direct?{navigation}:{}),items:resultItems,total:selected.total,nextCursor:selected.nextCursor,...(direct?{navigation}:{}),
+    ...(!direct?{sourceSearch:{status:'not-run',operation:'source-search',...(fallbackPaths.length?{args:{query:fallbackTerms.join(' ')||args.query||requestedPath,paths:fallbackPaths}}:{}),
+      next:fallbackPaths.length?'Run this separate operation to inspect live source evidence; adjust the suggested paths and query first if needed.':'Choose eligible source paths before running cground source-search QUERY --path PATH. Read any excluded configuration paths directly.'}}:{}),
+    caveat:'Stored matches are lexical navigation, not proof of an answer or complete coverage. Read source. Navigation paths are unverified; --verify checks only selected facts and dependencies.',
+    next:direct?'Read the cited source before relying on these claims.':'Read source using the navigation hints or the separate source-search fallback.',
+  };
 }
 
 /** Compare only task-touched portions of candidate fact scopes, including additions/deletions. */
