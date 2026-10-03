@@ -4,6 +4,8 @@ An open-source framework for shared, Git-backed repository knowledge.
 
 Common Ground gives coding agents a reusable map of your codebase: **pillars** describe responsibilities, **chapters** organize subareas, and **facts** record source-backed behavior. Your team shares the knowledge through Git. Agents read and maintain it through a local CLI or MCP server; developers approve new knowledge and responsibility boundaries.
 
+The CLI is primarily intended for coding agents. As a developer, install it and ask your agent to initialize your repository; the agent handles command execution, source verification, and ongoing knowledge maintenance, bringing proposed new knowledge and responsibility boundaries to you for approval.
+
 No model API key, telemetry, cloud service, or vector database is required. Code remains the source of truth.
 
 ## Get started
@@ -12,13 +14,19 @@ Requires Node.js 22+ and npm. Download the `.tgz` package from [GitHub Releases]
 
 ```sh
 npm install -g ./common-ground-knowledge-0.5.0-beta-2.tgz
-cd your-project
-cground init
 ```
 
 The beta is distributed through GitHub Releases, not npmjs.com. Choose the `.tgz` asset, not GitHub's source archive. npm still needs registry access to install runtime dependencies.
 
-`init` creates repository guidance, MCP configuration, an advisory Git hook, and a local Markdown reference. Ask your agent to review the proposed responsibility map and facts with you. After approval, it populates `.common-ground/knowledge.json`. Initialization alone does not invent or approve facts.
+Open your project with your coding agent and tell it:
+
+> Use the Common Ground CLI to initialize this repository with `cground init`. Inspect the source, propose a responsibility map and initial facts for my approval, and handle setup and ongoing knowledge maintenance.
+
+Your agent runs `init` to create repository guidance, MCP configuration, an advisory Git hook, and a local Markdown reference. It handles discovery, verification, and setup, explaining the proposed map and facts in plain language. After your approval, it populates `.common-ground/knowledge.json`. Continue giving your agent normal development tasks; it uses Common Ground as needed.
+
+## CLI reference for agents
+
+The commands below are a reference for agents and developers extending or troubleshooting the framework. Developers can ask their agent to perform these workflows in plain language.
 
 For a complete initial transaction, your agent can prepare a JSON payload with `pillars` and `batches: [{chapterId, facts}]`, then run:
 
@@ -30,7 +38,7 @@ cground bootstrap setup.json --approve --preflight TOKEN
 
 The dry run validates the whole map and all fact batches without creating a registry, reports source-file counts, and returns `TOKEN`. Changes to the payload, source or registry reject publication. `seed-batch` provides the same preflight/apply workflow for already approved empty chapters. JSON commands accept `--stdin` instead of their filename (or `-` as the filename). Boundary-only `approve` and single-chapter `seed` remain available; approving boundaries does not approve facts.
 
-Then try:
+For ongoing checks, the agent can use:
 
 ```sh
 cground review                # Ask your agent to explain knowledge changes
