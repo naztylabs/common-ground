@@ -61,4 +61,14 @@ Common Ground runs locally through a CLI and a stdio MCP server. It includes set
 - [Discovery](docs/discovery.md) — how candidate responsibilities are found
 - [Release guide](docs/releases.md) — changes, packaging, and migration
 
-Common Ground is MIT licensed.
+## License and credit
+
+Common Ground is [MIT licensed](LICENSE). Commercial use is welcome.
+
+If you incorporate Common Ground into your product, please acknowledge Common Ground and its contributors in an accessible credits, About, or documentation page, with a link to the project. This acknowledgment is voluntary and does not add conditions to the MIT license. The license's copyright and permission notice requirements still apply.
+
+Use the following credit template:
+
+> This product uses [Common Ground](https://github.com/naztylabs/common-ground), an open-source framework for shared, Git-backed repository knowledge, developed by the Common Ground contributors. Common Ground is licensed under the MIT License.
+
+Include the full [MIT license and copyright notice](LICENSE) with copies or substantial portions of Common Ground; the credit template does not replace them.
