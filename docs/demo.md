@@ -1,6 +1,6 @@
 # Synthetic workflow demo
 
-Build and pack the source, then install the resulting `nazty_labs-common-ground-0.5.1.tgz` using npm. Copy `examples/demo-monorepo` to a separate directory and run:
+Build and pack the source, then install the resulting `nazty_labs-common-ground-x.y.z.tgz` using npm. Copy `examples/demo-monorepo` to a separate directory and run:
 
 ```sh
 cground init

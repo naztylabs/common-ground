@@ -1,0 +1,38 @@
+# Security boundaries and dependency alerts
+
+Common Ground is a local, Git-backed repository knowledge framework. Its interfaces are the CLI and a stdio MCP server. It has no telemetry or cloud dependency. Repository reads, knowledge writes and Git subprocesses are necessary functionality. A connected agent host may send retrieved content to its model provider.
+
+The MCP host fixes the repository root and controls access to the process. Common Ground is not an OS sandbox: approval declarations do not authenticate a human, and a caller with direct filesystem access can bypass the knowledge workflow. Avoid secrets in repository knowledge. Path checks reject traversal and symlinks, but optimistic source checks are not filesystem snapshots and do not prevent concurrent filesystem races. See [Architecture](architecture.md) and [Knowledge policy](knowledge-policy.md).
+
+## Dependency baseline
+
+Version 0.5.3 requires `@modelcontextprotocol/sdk` version 1.32.1 or later within major version 1. The previous `^1.26.0` range allowed SDK releases affected by recent advisories. npm consumers resolve dependency ranges independently; this repository's lockfile does not fix every consumer's dependency tree.
+
+The SDK's [OAuth credential disclosure](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-6qxp-vccf-f47h), [cross-origin redirects](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-6prh-2h8m-c8cw), [bearer-token audience checks](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-rvq5-wwqv-78pq) and [experimental task isolation](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-22jm-h49p-29qw) affect features Common Ground does not use. Raising the minimum excludes affected SDK versions without removing the CLI, either MCP profile, Git hooks or knowledge workflows.
+
+## Socket assessment
+
+The [Common Ground 0.5.2 scan](https://socket.dev/npm/package/@nazty_labs/common-ground/alerts/0.5.2?tab=dependencies) was reviewed on October 9, 2026. Socket resolved SDK 1.32.1; the repository then locked 1.30.1. A fresh 0.5.2 installation resolved 1.32.1 and returned no known vulnerabilities from npm audit. This is a dated assessment, not an exhaustive security certification. Capability alerts are described in [Socket's alert catalog](https://socket.dev/alerts).
+
+| Alert and location | Assessment for Common Ground | Review condition |
+| --- | --- | --- |
+| SDK AI security risk and anomaly: `examples/server/elicitationUrlExample.js`, ESM and CJS | The example contains plaintext API-key logging and unsafe HTML interpolation. Common Ground does not import or run it. | Reassess if example code or an HTTP interface is adopted. |
+| Zod anomaly: `v4/core/doc.js` | The SDK uses Zod v4 internally, even though Common Ground's own schemas use v3. Validator code generation is reachable during message parsing. The inspected generator uses library-defined schema shapes, escapes property names and treats request values as data; no request-to-code path was found. | Recheck generator call sites when SDK/Zod versions or schema construction change. |
+| AJV eval: `dist/compile/index.js`; anomalies in JTD parser, timestamp and standalone instance | AJV is loaded by the SDK. Its flagged JTD and standalone execution modules were not loaded in the traced handshake, tool listing, lookup, source-search and invalid-input requests. Common Ground does not accept arbitrary schemas for compilation or use SDK elicitation. | Reassess if runtime schema ingestion, custom keywords or elicitation is added. |
+| Eval: async-function, async-generator-function and generator-function `legacy.js` | The flagged helpers evaluate constant syntax strings to obtain constructors. They were absent from the fresh installation reviewed; Socket's dependency snapshot can differ from a later npm resolution. | Compare exact consumer versions and call sites before accepting a future alert. |
+| Eval: function-bind `implementation.js`, depd `index.js` | Bind fallback and deprecation-wrapper generation; these packages were not loaded in the traced requests. | Reassess if imports or wrapper inputs change. |
+| Shell access and anomaly: cross-spawn; anomalies in which and isexe | The SDK's client process launcher is unused by Common Ground's stdio server transport. Common Ground's own Git integration uses `execFile` argument arrays; its advisory Git hook intentionally uses a shell. | Preserve shell-free Git argument handling and checkout-filter suppression; review new subprocess paths. |
+| Network: @hono/node-server, eventsource, express-rate-limit, express, hono, jose and router; dynamic require: Express `lib/view.js` | These network/view packages were not loaded in the traced requests. Common Ground does not configure HTTP transports or template rendering. They are still installed dependencies and contribute supply-chain exposure. | Reassess any new transport, authentication, rendering or client feature. |
+| Other anomalies: ipaddr.js, send and side-channel-weakmap | The findings concern conditional IP parsing/redirect behavior or legitimate internal storage. Their relevant paths are unused by the current interface; no Common Ground exploit was established. | Review newly reachable call sites and attacker-controlled inputs. |
+| Environment, filesystem, debug access and URL strings | Capabilities and strings alone do not establish exfiltration or code execution. Filesystem access is required for repository knowledge. | Trace concrete reads, destinations and execution paths rather than accepting a category-wide exception. |
+| Unmaintained, new author, Socket optimized override available | Maintenance and supply-chain signals, not proof of an exploitable defect. Blanket replacement can introduce compatibility and maintenance costs. | Review provenance and advisories; evaluate individual replacements with regression coverage. |
+
+This assessment does not suppress scanner alerts automatically. Unused installed dependencies can still pose supply-chain risk, and absence of an npm advisory does not establish safety. Evaluate upstream modular server packages separately if they can reduce dependencies while preserving both MCP profiles and the CLI; do not remove required validation or Git functionality to improve a scan score.
+
+## Repeatable validation
+
+`npm test` runs `test/mcp-security.test.mjs` against both MCP profiles. The synthetic server process denies JavaScript TCP/UDP connection and listener operations and `fetch`, and checks stderr for attempted access even if application code catches the error. It exercises handshake, tool discovery, verified lookup, source search, code-looking query strings and invalid inputs, while checking that registry contents, modification time and local file names remain unchanged.
+
+Each profile also runs with Node's `--disallow-code-generation-from-strings` option. This verifies the SDK/Zod fallback for those exercised paths. The normal process configuration remains supported; the option is not imposed on consumers. These checks do not cover every operation or prevent network access from a subprocess, native code or a compromised dependency.
+
+The release workflow repeats these tests against the installed archive. The complete suite additionally checks knowledge transactions, approval requirements, source/revision conflicts, Git review, hook filters and symlink rejection. Release preparation runs the build, tests, synthetic demo and schema generation. Re-run npm audit against the lockfile and a clean archive installation when changing dependencies, and review any new Socket findings at their exact package versions and source locations.

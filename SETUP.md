@@ -16,13 +16,13 @@ This guide covers installation, agent setup, initial knowledge publication, ever
 
 ## Get started
 
-Requires Node.js 22+ and npm. Download the `.tgz` package from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install it:
+Requires Node.js 22+ and npm. Install the published package:
 
 ```sh
-npm install -g ./nazty_labs-common-ground-0.5.1.tgz
+npm install -g @nazty_labs/common-ground
 ```
 
-The package is distributed through GitHub Releases, not npmjs.com. Choose the `.tgz` asset, not GitHub's source archive. npm still needs registry access to install runtime dependencies.
+The same package archive is available from [GitHub Releases](https://github.com/naztylabs/common-ground/releases). To install that archive, download the `.tgz` asset and run `npm install -g ./nazty_labs-common-ground-x.y.z.tgz`. Choose the `.tgz` asset, not GitHub's source archive. npm needs registry access to install runtime dependencies in either case; normal runtime operation is local.
 
 Open your project with your coding agent and tell it:
 
@@ -209,7 +209,7 @@ npm ci
 npm test
 npm run demo                # Synthetic repository only
 npm run release:pack        # Tested archive + checksum in release/
-npm install -g ./release/nazty_labs-common-ground-0.5.1.tgz
+npm install -g ./release/nazty_labs-common-ground-0.5.3.tgz
 ```
 
 After upgrading, run `cground doctor` and `cground refresh-guidance` for stale instructions, then restart the MCP server. Use `cground init` when full setup needs repair. `refresh-guidance` lists `changedFiles` and `unchangedFiles`; a healthy doctor or completed refresh returns `next: null`. Existing schema-v2 records are preserved. For a schema-v1 pillar-only registry, first review and run `cground migrate --approve`. Read the [release guide](docs/releases.md) for publishing and migration details.

@@ -4,6 +4,16 @@ Common Ground publishes `@nazty_labs/common-ground` to npm and the same package 
 
 Consumers still need Node.js 22+ and npm. The archive contains compiled JavaScript and schemas, but not bundled dependencies. npm downloads those dependencies from the configured registry at installation time. Normal runtime operation is local.
 
+## 0.5.3
+
+- Raise the MCP SDK dependency minimum to 1.32.1 and refresh its lockfile entry, excluding older versions affected by recent SDK security advisories. Common Ground continues to expose a local stdio server; it does not use the affected HTTP/OAuth client, bearer-authentication or experimental-task features.
+- Add synthetic tests for both MCP profiles with network operations denied, with and without string code generation. They check retrieval, live source search, validation of untrusted request data and absence of knowledge/task writes. Release verification runs these checks against the installed archive as well.
+- Document the Socket alert assessment and its limits in [Security boundaries and dependency alerts](security.md). Git review, advisory hooks, schemas, knowledge transactions and approval requirements remain supported. No registry migration or guidance refresh is required; restart the MCP server after upgrading.
+
+## 0.5.2
+
+This patch was a simple naming update, CODEOWNER file change, and npm publish demo.
+
 ## 0.5.1
 
 This patch addresses feedback from initial setup, build/release lookup and technical format queries:
@@ -71,7 +81,7 @@ Schema-v2 registries remain supported. Integrations that consume full mutation o
 
 1. Commit and push `.github/workflows/release.yml`, the packaging script, and the related project changes before tagging.
 2. Ensure GitHub Actions is enabled for the repository. Repository or organization policy must allow the workflow's `contents: write` permission so it can create a release and upload assets.
-3. Create the package on npm with an initial manual release if it does not exist yet. Run the release checks first, then publish the generated archive with `npm publish ./release/nazty_labs-common-ground-0.5.1.tgz --access public`. Authenticate with your npm account and 2FA. The next automated release must use a new version.
+3. Create the package on npm with an initial manual release if it does not exist yet. Run the release checks first, then publish the generated archive with `npm publish ./release/nazty_labs-common-ground-0.5.3.tgz --access public`. Authenticate with your npm account and 2FA. The next automated release must use a new version.
 4. In the npm package settings, add a GitHub Actions trusted publisher: GitHub owner `naztylabs`, repository `common-ground`, workflow filename `release.yml`, and no environment name. Enable direct `npm publish` permission. The npm organization is `nazty_labs`; the GitHub owner is `naztylabs`.
 5. Allow the workflow’s `id-token: write` permission. No npm token secret is needed. GitHub release uploads use the built-in `GITHUB_TOKEN`. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 
@@ -90,19 +100,19 @@ npm run release:pack
 This runs tests and the synthetic demo, regenerates the compiled runtime and JSON schemas, and writes these files for the current version:
 
 ```text
-release/nazty_labs-common-ground-0.5.1.tgz
-release/nazty_labs-common-ground-0.5.1.tgz.sha256
+release/nazty_labs-common-ground-0.5.3.tgz
+release/nazty_labs-common-ground-0.5.3.tgz.sha256
 ```
 
-Inspect the archive with `tar -tzf release/nazty_labs-common-ground-0.5.1.tgz`. The package includes `dist/`, `schemas/`, documentation, its manifest and license. Repository knowledge, local state, tests, source fixtures, and `node_modules/` are excluded. Local packaging does not publish remotely.
+Inspect the archive with `tar -tzf release/nazty_labs-common-ground-0.5.3.tgz`. The package includes `dist/`, `schemas/`, documentation, its manifest and license. Repository knowledge, local state, tests, source fixtures, and `node_modules/` are excluded. Local packaging does not publish remotely.
 
 ## Publish the current version
 
 After committing all intended changes, create and push the matching tag:
 
 ```sh
-git tag -a v0.5.1 -m "Common Ground 0.5.1"
-git push origin v0.5.1
+git tag -a v0.5.3 -m "Common Ground 0.5.3"
+git push origin v0.5.3
 ```
 
 Pushing the tag publishes the release automatically after the checks pass. Follow the **GitHub release** run in the repository's Actions tab. The workflow verifies the installed CLI version, publishes the tested archive to npm, then uploads the archive and checksum and generates release notes. Stable versions use npm’s `latest` tag; prerelease versions use `next`. Versions containing a prerelease suffix, such as `-beta.1`, are marked as prereleases and are not marked Latest.
@@ -124,21 +134,21 @@ If validation or packaging fails before release creation, fix the problem and pu
 Download the `.tgz` asset using a browser. GitHub's **Source code (zip)** and **Source code (tar.gz)** downloads are source snapshots, not the built npm package. From the download directory:
 
 ```sh
-npm install -g ./nazty_labs-common-ground-0.5.1.tgz
+npm install -g ./nazty_labs-common-ground-0.5.3.tgz
 cground --version
 ```
 
 Optionally download the corresponding `.sha256` asset and check it on Linux before installing:
 
 ```sh
-sha256sum --check nazty_labs-common-ground-0.5.1.tgz.sha256
+sha256sum --check nazty_labs-common-ground-0.5.3.tgz.sha256
 ```
 
 With GitHub CLI installed and, for a private repository, authenticated:
 
 ```sh
-gh release download v0.5.1 --repo naztylabs/common-ground \
-  --pattern 'nazty_labs-common-ground-0.5.1.tgz*'
+gh release download v0.5.3 --repo naztylabs/common-ground \
+  --pattern 'nazty_labs-common-ground-0.5.3.tgz*'
 ```
 
 Downloading first and installing the local file also avoids npm version differences in permissions for remote tarball URLs. Public release assets can be downloaded without a GitHub account; private repository assets require access.
