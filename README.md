@@ -12,11 +12,11 @@ Ask about your release process. Start a feature in an unfamiliar package. Trace 
 
 Install Common Ground once in the environment where your agent runs. Requires Node.js 22+ and npm.
 
-Download the `.tgz` package from [GitHub Releases](https://github.com/naztylabs/common-ground/releases), then install it:
-
 ```sh
-npm install -g ./nazty_labs-common-ground-0.5.1.tgz
+npm install -g @nazty_labs/common-ground
 ```
+
+You can also install the versioned `.tgz` archive from [GitHub Releases](https://github.com/naztylabs/common-ground/releases); see the [release guide](docs/releases.md).
 
 Open your repository with a coding agent that has terminal or MCP tool access, and tell it:
 
@@ -60,6 +60,7 @@ Common Ground runs locally through a CLI and a stdio MCP server. It includes set
 - [Synthetic demo](docs/demo.md) — a complete example repository workflow
 - [Discovery](docs/discovery.md) — how candidate responsibilities are found
 - [Release guide](docs/releases.md) — changes, packaging, and migration
+- [Security boundaries](docs/security.md) — dependency alerts, exposure and validation
 
 ## License and credit
 

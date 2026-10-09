@@ -51,6 +51,10 @@ jobs:
           test "$actual" = "${RELEASE_TAG#v}"
           "$RUNNER_TEMP/common-ground-install/bin/cground" --help
           (cd release && sha256sum --check *.sha256)
+      - name: Verify installed stdio MCP security boundaries
+        env:
+          CGROUND_TEST_CLI: ${{ runner.temp }}/common-ground-install/lib/node_modules/@nazty_labs/common-ground/dist/cli.js
+        run: node --test test/mcp-security.test.mjs
       - name: Publish to npm
         run: |
           tag=latest
